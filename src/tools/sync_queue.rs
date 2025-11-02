@@ -22,10 +22,3 @@
 // misrepresented as being the original software.                              //
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
-
-use publish_subscribe_rs::tools::sync_object;
-
-fn main() {
-    let mut sync = sync_object::SyncObject::new(false);
-    sync.wait_for_signal();
-}

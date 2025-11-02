@@ -23,9 +23,8 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use publish_subscribe_rs::tools::sync_object;
-
-fn main() {
-    let mut sync = sync_object::SyncObject::new(false);
-    sync.wait_for_signal();
+pub mod tools {
+    pub mod sync_dictionary;
+    pub mod sync_object;
+    pub mod sync_queue;
 }

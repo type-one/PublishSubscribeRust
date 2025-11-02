@@ -23,9 +23,66 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use publish_subscribe_rs::tools::sync_object;
+/// Synchronization object using standard Rust constructs.
+///
+/// This file contains the definition of the sync_object class, which provides
+/// a synchronization mechanism using standard Rust constructs such as mutexes and
+/// condition variables.
+pub struct SyncObject {
+    mutex: std::sync::Mutex<bool>,
+    condvar: std::sync::Condvar,
+    stop: bool,
+}
 
-fn main() {
-    let mut sync = sync_object::SyncObject::new(false);
-    sync.wait_for_signal();
+/// Implementation of the SyncObject methods.
+impl SyncObject {
+    /// Creates a new SyncObject with the specified initial state.
+    pub fn new(initial_state: bool) -> Self {
+        SyncObject {
+            mutex: std::sync::Mutex::new(initial_state),
+            condvar: std::sync::Condvar::new(),
+            stop: false,
+        }
+    }
+
+    /// Waits for a signal to be received.
+    pub fn wait_for_signal(&mut self) {
+        let mut guard = self.mutex.lock().unwrap();
+        while !*guard {
+            guard = self.condvar.wait(guard).unwrap();
+        }
+        *guard = self.stop;
+    }
+
+    /// Waits for a signal to be received with a timeout.
+    pub fn wait_for_signal_timeout(&mut self, timeout_ms: u64) {
+        let mut guard = self.mutex.lock().unwrap();
+        (guard, _) = self
+            .condvar
+            .wait_timeout(guard, std::time::Duration::from_millis(timeout_ms))
+            .unwrap();
+        *guard = self.stop;
+    }
+
+    /// Sends a signal to wake up waiting threads.
+    pub fn signal(&mut self) {
+        {
+            let mut guard = self.mutex.lock().unwrap();
+            *guard = true;
+        }
+        self.condvar.notify_one();
+    }
+}
+
+/// Implementation of the Drop trait for SyncObject.
+impl Drop for SyncObject {
+    /// Cleans up the SyncObject by signaling all waiting threads to stop.
+    fn drop(&mut self) {
+        {
+            let mut guard = self.mutex.lock().unwrap();
+            *guard = true;
+            self.stop = true;
+        }
+        self.condvar.notify_all();
+    }
 }
