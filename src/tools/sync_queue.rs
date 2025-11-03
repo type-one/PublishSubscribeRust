@@ -60,6 +60,30 @@ impl<T> SyncQueue<T> {
         let guard = self.queue.lock().unwrap();
         guard.len()
     }
+
+    /// Clears all items from the queue.
+    pub fn clear(&self) {
+        let mut guard = self.queue.lock().unwrap();
+        guard.clear();
+    }
+
+    /// Returns a reference to the front item of the queue.
+    pub fn front(&self) -> Option<T>
+    where
+        T: Clone,
+    {
+        let guard = self.queue.lock().unwrap();
+        guard.front().cloned()
+    }
+
+    /// Returns a reference to the back item of the queue.
+    pub fn back(&self) -> Option<T>
+    where
+        T: Clone,
+    {
+        let guard = self.queue.lock().unwrap();
+        guard.back().cloned()
+    }
 }
 
 /// Default implementation for SyncQueue.
