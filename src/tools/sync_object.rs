@@ -48,19 +48,31 @@ impl SyncObject {
     /// Waits for a signal to be received.
     pub fn wait_for_signal(&mut self) {
         let mut guard = self.mutex.lock().unwrap();
+
         while !*guard {
             guard = self.condvar.wait(guard).unwrap();
         }
+
         *guard = self.stop;
     }
 
     /// Waits for a signal to be received with a timeout.
     pub fn wait_for_signal_timeout(&mut self, timeout_ms: u64) {
         let mut guard = self.mutex.lock().unwrap();
-        (guard, _) = self
-            .condvar
-            .wait_timeout(guard, std::time::Duration::from_millis(timeout_ms))
-            .unwrap();
+
+        while !*guard {
+            let (new_guard, timeout_status) = self
+                .condvar
+                .wait_timeout(guard, std::time::Duration::from_millis(timeout_ms))
+                .unwrap();
+
+            guard = new_guard; // move
+
+            if timeout_status.timed_out() {
+                break;
+            }
+        }
+
         *guard = self.stop;
     }
 
