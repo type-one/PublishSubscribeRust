@@ -162,6 +162,18 @@ fn main() {
         let observer = std::sync::Arc::new(MyObserver);
         subject.subscribe("TestTopic".to_string(), observer.clone());
 
+        // subscribe a closure as a loose-coupled handler
+        subject.subscribe_handler(
+            "TestTopic".to_string(),
+            std::sync::Arc::new(|topic: &String, event: &String, origin: &str| {
+                println!(
+                    "Loose-coupled handler - Topic: {}, Event: {}, Origin: {}",
+                    topic, event, origin
+                );
+            }),
+            "MyHandler",
+        );
+
         subject.publish(&"TestTopic".to_string(), &"TestEvent".to_string());
     }
 }
