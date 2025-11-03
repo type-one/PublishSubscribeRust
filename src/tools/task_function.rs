@@ -23,12 +23,6 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-pub mod tools {
-    pub mod histogram;
-    pub mod periodic_task;
-    pub mod sync_dictionary;
-    pub mod sync_object;
-    pub mod sync_queue;
-    pub mod task_function;
-    pub mod worker_task;
-}
+/// Define the type for the task function used in tasks.
+pub type TaskFunction<ContextType> =
+    dyn Fn(std::sync::Arc<ContextType>, &String) + Send + Sync + 'static;

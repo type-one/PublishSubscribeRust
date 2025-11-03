@@ -23,12 +23,12 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-pub mod tools {
-    pub mod histogram;
-    pub mod periodic_task;
-    pub mod sync_dictionary;
-    pub mod sync_object;
-    pub mod sync_queue;
-    pub mod task_function;
-    pub mod worker_task;
+use crate::tools::task_function::TaskFunction;
+
+struct WorkerTask<ContextType> {
+    task_name: String,
+    task_function: std::sync::Arc<TaskFunction<ContextType>>,
+    context: std::sync::Arc<ContextType>,
+    stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    task_handle: Option<std::thread::JoinHandle<()>>,
 }

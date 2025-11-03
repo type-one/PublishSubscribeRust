@@ -23,10 +23,7 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-/// A periodic task implementation using standard Rust constructs.
-pub type TaskFunction<ContextType> =
-    dyn Fn(std::sync::Arc<ContextType>, &String) + Send + Sync + 'static;
-
+use crate::tools::task_function::TaskFunction;
 /// Struct representing a periodic task.
 pub struct PeriodicTask<ContextType> {
     task_name: String,
@@ -64,15 +61,20 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
         let task_name = self.task_name.clone();
         let period_ms = self.period_ms;
 
-        self.task_handle = Some(std::thread::spawn(move || {
-            Self::run_loop(task_function, task_name, period_ms, context, stop_task);
-        }));
+        self.task_handle = Some(
+            std::thread::Builder::new()
+                .name(task_name.clone())
+                .spawn(move || {
+                    Self::run_loop(task_function, &task_name, period_ms, context, stop_task);
+                })
+                .expect("Failed to spawn periodic task"),
+        );
     }
 
     // The main loop of the periodic task.
     fn run_loop(
         task_function: std::sync::Arc<TaskFunction<ContextType>>,
-        task_name: String,
+        task_name: &String,
         period_ms: u64,
         context: std::sync::Arc<ContextType>,
         stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
