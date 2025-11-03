@@ -108,9 +108,9 @@ where
     }
 }
 
-/// Specialized implementation of statistical methods for Histogram with usize values.
-impl Histogram<usize> {
-    /// Calculates the average of the sampled usize values.
+/// Specialized implementation of statistical methods for Histogram with i32 values.
+impl Histogram<i32> {
+    /// Calculates the average of the sampled i32 values.
     pub fn average(&self) -> f64 {
         if self.total_count == 0 {
             return 0.0;
@@ -155,7 +155,7 @@ impl Histogram<usize> {
             return 0.0;
         }
 
-        let mut sorted_values: Vec<(&usize, &usize)> = self.occurences.iter().collect();
+        let mut sorted_values: Vec<(&i32, &usize)> = self.occurences.iter().collect();
         sorted_values.sort_by_key(|&(value, _)| *value);
 
         // https://www.calculator.net/mean-median-mode-range-calculator.html

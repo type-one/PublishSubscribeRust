@@ -88,13 +88,23 @@ fn main() {
         println!("No occurrences in histogram.");
     }
 
+    let average = hist.average();
+    println!("Average value: {}", average);
+    println!("Total count: {}", hist.total_count());
+    let variance = hist.variance(average);
+    println!("Variance: {}", variance);
+    let std_dev = hist.standard_deviation(variance);
+    println!("Standard deviation: {}", std_dev);
+    println!("Median: {}", hist.median());
+    println!("Gaussian probability between 49 and 51: {}", hist.gaussian_probability_between(49.0, 51.0, average, std_dev, 10000));
+
     // Test histogram with String type
     let mut hist: histogram::Histogram<String> = histogram::Histogram::<String>::new();
     hist.add("hello".to_string());
     hist.add("hello".to_string());
     hist.add("world".to_string());
     hist.add("rust".to_string());
-    
+
     if let Some((top_value, count)) = hist.top_value_with_count() {
         println!("Top occurrence: value = {}, count = {}", top_value, count);
     } else {
