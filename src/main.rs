@@ -39,22 +39,26 @@ fn my_periodic_function(context: std::sync::Arc<MyContext>, task_name: &String) 
 }
 
 fn main() {
+    // Test sync queue
     let sync_queue = sync_queue::SyncQueue::<i32>::new();
     sync_queue.enqueue(10);
     let item = sync_queue.dequeue();
     println!("Dequeued item: {:?}", item);
 
+    // Test sync object
     let mut sync = sync_object::SyncObject::new(false);
     //sync.wait_for_signal();
 
     sync.wait_for_signal_timeout(1000);
 
+    // Test sync dictionary
     let dict = sync_dictionary::SyncDictionary::<String, i32>::new();
     dict.insert("key1".to_string(), 42);
     if let Some(value) = dict.get(&"key1".to_string()) {
         println!("Value for 'key1': {}", value);
     }
 
+    // Test histogram
     let mut hist: histogram::Histogram<i32> = histogram::Histogram::<i32>::new();
     hist.add(42);
     if let Some((top_value, count)) = hist.top_value_with_count() {
@@ -63,6 +67,7 @@ fn main() {
         println!("No occurrences in histogram.");
     }
 
+    // Test histogram with String type
     let mut hist: histogram::Histogram<String> = histogram::Histogram::<String>::new();
     hist.add("hello".to_string());
     if let Some((top_value, count)) = hist.top_value_with_count() {
