@@ -38,9 +38,9 @@ fn main() {
 
     sync.wait_for_signal_timeout(1000);
 
-    //let mut dict = sync_dictionary::SyncDictionary::<String, i32>::new();
-    //dict.insert("key1".to_string(), 42);
-    //if let Some(value) = dict.get(&"key1".to_string()) {
-    //    println!("Value for 'key1': {}", value);
-    //}
+    let dict = sync_dictionary::SyncDictionary::<String, i32>::new();
+    dict.insert("key1".to_string(), 42);
+    if let Some(value) = dict.get(&"key1".to_string()) {
+        println!("Value for 'key1': {}", value);
+    }
 }
