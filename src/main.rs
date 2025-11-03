@@ -23,9 +23,24 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use publish_subscribe_rs::tools::sync_dictionary;
 use publish_subscribe_rs::tools::sync_object;
+use publish_subscribe_rs::tools::sync_queue;
 
 fn main() {
+    let sync_queue = sync_queue::SyncQueue::<i32>::new();
+    sync_queue.enqueue(10);
+    let item = sync_queue.dequeue();
+    println!("Dequeued item: {:?}", item);
+
     let mut sync = sync_object::SyncObject::new(false);
-    sync.wait_for_signal();
+    //sync.wait_for_signal();
+
+    sync.wait_for_signal_timeout(1000);
+
+    //let mut dict = sync_dictionary::SyncDictionary::<String, i32>::new();
+    //dict.insert("key1".to_string(), 42);
+    //if let Some(value) = dict.get(&"key1".to_string()) {
+    //    println!("Value for 'key1': {}", value);
+    //}
 }

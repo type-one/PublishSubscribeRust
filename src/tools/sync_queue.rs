@@ -22,3 +22,49 @@
 // misrepresented as being the original software.                              //
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
+
+/// Thread-safe queue implementation using standard Rust constructs.
+pub struct SyncQueue<T> {
+    queue: std::sync::Mutex<std::collections::VecDeque<T>>,
+}
+
+/// Implementation of the SyncQueue methods.
+impl<T> SyncQueue<T> {
+    /// Creates a new SyncQueue.
+    pub fn new() -> Self {
+        SyncQueue {
+            queue: std::sync::Mutex::new(std::collections::VecDeque::new()),
+        }
+    }
+
+    /// Adds an item to the back of the queue.
+    pub fn enqueue(&self, item: T) {
+        let mut guard = self.queue.lock().unwrap();
+        guard.push_back(item);
+    }
+
+    /// Removes and returns an item from the front of the queue.
+    pub fn dequeue(&self) -> Option<T> {
+        let mut guard = self.queue.lock().unwrap();
+        guard.pop_front()
+    }
+
+    /// Checks if the queue is empty.
+    pub fn is_empty(&self) -> bool {
+        let guard = self.queue.lock().unwrap();
+        guard.is_empty()
+    }
+
+    /// Returns the size of the queue.
+    pub fn size(&self) -> usize {
+        let guard = self.queue.lock().unwrap();
+        guard.len()
+    }
+}
+
+/// Default implementation for SyncQueue.
+impl<T> Default for SyncQueue<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
