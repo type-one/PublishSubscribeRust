@@ -23,6 +23,7 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use publish_subscribe_rs::tools::histogram;
 use publish_subscribe_rs::tools::sync_dictionary;
 use publish_subscribe_rs::tools::sync_object;
 use publish_subscribe_rs::tools::sync_queue;
@@ -42,5 +43,21 @@ fn main() {
     dict.insert("key1".to_string(), 42);
     if let Some(value) = dict.get(&"key1".to_string()) {
         println!("Value for 'key1': {}", value);
+    }
+
+    let mut hist: histogram::Histogram<i32> = histogram::Histogram::<i32>::new();
+    hist.add(42);
+    if let Some((top_value, count)) = hist.top_value_with_count() {
+        println!("Top occurrence: value = {}, count = {}", top_value, count);
+    } else {
+        println!("No occurrences in histogram.");
+    }
+
+    let mut hist: histogram::Histogram<String> = histogram::Histogram::<String>::new();
+    hist.add("hello".to_string());
+    if let Some((top_value, count)) = hist.top_value_with_count() {
+        println!("Top occurrence: value = {}, count = {}", top_value, count);
+    } else {
+        println!("No occurrences in histogram.");
     }
 }
