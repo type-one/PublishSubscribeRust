@@ -28,6 +28,7 @@ pub mod tools {
     pub mod periodic_task;
     pub mod sync_dictionary;
     pub mod sync_object;
+    pub mod sync_observer;
     pub mod sync_queue;
     pub mod task_function;
     pub mod worker_task;

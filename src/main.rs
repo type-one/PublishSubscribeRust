@@ -27,6 +27,7 @@ use publish_subscribe_rs::tools::histogram;
 use publish_subscribe_rs::tools::periodic_task;
 use publish_subscribe_rs::tools::sync_dictionary;
 use publish_subscribe_rs::tools::sync_object;
+use publish_subscribe_rs::tools::sync_observer;
 use publish_subscribe_rs::tools::sync_queue;
 use publish_subscribe_rs::tools::worker_task;
 
@@ -138,6 +139,6 @@ fn main() {
         ));
 
         // Let the worker task run for a few seconds
-        std::thread::sleep(std::time::Duration::from_secs(5));
+        std::thread::sleep(std::time::Duration::from_secs(2));
     }
 }
