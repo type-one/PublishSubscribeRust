@@ -24,9 +24,19 @@
 //-----------------------------------------------------------------------------//
 
 use publish_subscribe_rs::tools::histogram;
+use publish_subscribe_rs::tools::periodic_task;
 use publish_subscribe_rs::tools::sync_dictionary;
 use publish_subscribe_rs::tools::sync_object;
 use publish_subscribe_rs::tools::sync_queue;
+
+type MyContext = String;
+
+fn my_periodic_function(context: std::sync::Arc<MyContext>, task_name: &String) {
+    println!(
+        "Periodic task '{}' executed with context: {}",
+        task_name, context
+    );
+}
 
 fn main() {
     let sync_queue = sync_queue::SyncQueue::<i32>::new();
@@ -59,5 +69,42 @@ fn main() {
         println!("Top occurrence: value = {}, count = {}", top_value, count);
     } else {
         println!("No occurrences in histogram.");
+    }
+
+    // Test periodic task with a function pointer
+    {
+        let context = std::sync::Arc::new("My periodic task context".to_string());
+        let mut task = periodic_task::PeriodicTask::new(
+            "MyPeriodicTask".to_string(),
+            std::sync::Arc::new(my_periodic_function),
+            1000,
+            context.clone(),
+        );
+
+        task.start();
+
+        // Let the periodic task run for a few seconds
+        std::thread::sleep(std::time::Duration::from_secs(5));
+    }
+
+    // Test periodic task with a closure
+    {
+        let context_closure = std::sync::Arc::new("Closure context".to_string());
+        let mut task_closure = periodic_task::PeriodicTask::new(
+            "ClosurePeriodicTask".to_string(),
+            std::sync::Arc::new(|ctx: std::sync::Arc<MyContext>, task_name: &String| {
+                println!(
+                    "Periodic task '{}' executed with context: {}",
+                    task_name, ctx
+                );
+            }),
+            1500,
+            context_closure.clone(),
+        );
+
+        task_closure.start();
+
+        // Let the periodic task with closure run for a few seconds
+        std::thread::sleep(std::time::Duration::from_secs(5));
     }
 }

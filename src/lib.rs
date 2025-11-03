@@ -25,6 +25,7 @@
 
 pub mod tools {
     pub mod histogram;
+    pub mod periodic_task;
     pub mod sync_dictionary;
     pub mod sync_object;
     pub mod sync_queue;
