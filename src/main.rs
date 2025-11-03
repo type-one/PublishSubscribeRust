@@ -141,4 +141,27 @@ fn main() {
         // Let the worker task run for a few seconds
         std::thread::sleep(std::time::Duration::from_secs(2));
     }
+
+    // Test sync observer and subject
+    {
+        use sync_observer::{SyncObserver, SyncSubject};
+
+        struct MyObserver;
+
+        impl SyncObserver<String, String> for MyObserver {
+            fn inform(&self, topic: &String, event: &String, origin: &str) {
+                println!(
+                    "Observer informed - Topic: {}, Event: {}, Origin: {}",
+                    topic, event, origin
+                );
+            }
+        }
+
+        let mut subject = SyncSubject::<String, String>::new("MySyncSubject");
+
+        let observer = std::sync::Arc::new(MyObserver);
+        subject.subscribe("TestTopic".to_string(), observer.clone());
+
+        subject.publish(&"TestTopic".to_string(), &"TestEvent".to_string());
+    }
 }
