@@ -119,6 +119,7 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
 /// Implementation of the Drop trait for PeriodicTask.
 impl<ContextType> Drop for PeriodicTask<ContextType> {
     fn drop(&mut self) {
+        //println!("Stopping periodic task: {}", self.task_name);
         self.stop_task
             .store(true, std::sync::atomic::Ordering::Release);
         if let Some(handle) = self.task_handle.take() {

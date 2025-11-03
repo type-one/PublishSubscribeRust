@@ -87,10 +87,16 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
         while !stop_task.load(std::sync::atomic::Ordering::Acquire) {
             // Wait for work
             {
-                work_sync_object.lock().unwrap().wait_for_signal();
+                //work_sync_object.lock().unwrap().wait_for_signal();
+                work_sync_object
+                    .lock()
+                    .unwrap()
+                    .wait_for_signal_timeout(1000);
             }
             // Process all tasks in the queue
-            while let Some(task_function) = work_queue.dequeue() {
+            while let Some(task_function) = work_queue.dequeue()
+                && !stop_task.load(std::sync::atomic::Ordering::Acquire)
+            {
                 (task_function)(context.clone(), task_name);
             }
         } // run loop
@@ -100,10 +106,13 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
 /// Implementation of the Drop trait for WorkerTask.
 impl<ContextType> Drop for WorkerTask<ContextType> {
     fn drop(&mut self) {
+        //println!("Stopping worker task: {}", self.task_name);
         self.stop_task
             .store(true, std::sync::atomic::Ordering::Release);
         // signal the worker task to wake up
         self.work_sync_object.lock().unwrap().signal();
+
+        // wait for the worker task to finish
         if let Some(handle) = self.task_handle.take() {
             handle.join().unwrap();
         }
