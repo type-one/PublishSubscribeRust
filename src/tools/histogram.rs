@@ -23,6 +23,8 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use rand::Rng;
+
 /// A simple histogram implementation to track occurrences of values.
 pub struct Histogram<T> {
     occurences: std::collections::HashMap<T, usize>,
@@ -84,6 +86,16 @@ where
             .as_ref()
             .map(|(value, count)| (value, *count))
     }
+
+    /// Clears the histogram.
+    pub fn clear(&mut self) {
+        self.occurences.clear();
+        self.total_count = 0;
+        self.top_occurence = None;
+        self.top_value = None;
+    }
+
+    // average() is provided via a usize-specialized impl below.
 }
 
 /// Implementation of the Default trait for Histogram.
@@ -93,5 +105,130 @@ where
 {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// Specialized implementation of statistical methods for Histogram with usize values.
+impl Histogram<usize> {
+    /// Calculates the average of the sampled usize values.
+    pub fn average(&self) -> f64 {
+        if self.total_count == 0 {
+            return 0.0;
+        }
+
+        let sum: f64 = self
+            .occurences
+            .iter()
+            .map(|(value, count)| (*value as f64) * (*count as f64))
+            .sum();
+
+        sum / (self.total_count as f64)
+    }
+
+    /// Calculates the variance of the sampled usize values given the average.
+    pub fn variance(&self, average: f64) -> f64 {
+        if self.total_count == 0 {
+            return 0.0;
+        }
+
+        let variance_sum: f64 = self
+            .occurences
+            .iter()
+            .map(|(value, count)| {
+                // https://www.calculatorsoup.com/calculators/statistics/standard-deviation-calculator.php
+                let diff = (*value as f64) - average;
+                diff * diff * (*count as f64)
+            })
+            .sum();
+
+        variance_sum / (self.total_count as f64)
+    }
+
+    /// Calculates the standard deviation given the variance.
+    pub fn standard_deviation(&self, variance: f64) -> f64 {
+        variance.sqrt()
+    }
+
+    /// Calculates the median of the sampled usize values.
+    pub fn median(&self) -> f64 {
+        if self.total_count == 0 {
+            return 0.0;
+        }
+
+        let mut sorted_values: Vec<(&usize, &usize)> = self.occurences.iter().collect();
+        sorted_values.sort_by_key(|&(value, _)| *value);
+
+        // https://www.calculator.net/mean-median-mode-range-calculator.html
+
+        let mid_index = self.total_count / 2;
+        let mut cumulative_count = 0;
+
+        for (value, count) in sorted_values {
+            cumulative_count += *count;
+            if cumulative_count > mid_index {
+                return *value as f64;
+            }
+        }
+
+        0.0
+    }
+
+    /// Calculates the Gaussian density function for a given x, mean, and standard deviation.
+    pub fn gaussian_density_function(&self, x: f64, mean: f64, std_dev: f64) -> f64 {
+        // https://fr.wikipedia.org/wiki/Loi_normale
+        // https://www.savarese.org/math/gaussianintegral.html
+
+        if std_dev == 0.0 {
+            return 0.0;
+        }
+
+        let coeff = 1.0 / (std_dev * (2.0 * std::f64::consts::PI).sqrt());
+        let exponent = -((x - mean).powi(2)) / (2.0 * std_dev.powi(2));
+
+        coeff * exponent.exp()
+    }
+
+    /// Estimates the probability of a value falling between lower_bound and upper_bound
+    /// using the Gaussian distribution with the specified mean and standard deviation
+    pub fn gaussian_probability_between(
+        &self,
+        lower_bound: f64,
+        upper_bound: f64,
+        mean: f64,
+        std_dev: f64,
+        montecarlo_samples: usize,
+    ) -> f64 {
+        // https://en.wikipedia.org/wiki/Normal_distribution#Cumulative_distribution_function
+        // https://www.probabilitycourse.com/chapter5/5_2_3_normal_distribution.php
+        // https://cameron-mcelfresh.medium.com/monte-carlo-integration-313b37157852
+        // https://www.savarese.org/math/gaussianintegral.html
+        // https://en.wikipedia.org/wiki/Gaussian_integral
+        // https://stackoverflow.com/questions/288739/generate-random-numbers-uniformly-over-an-entire-range
+
+        let mut result = 0.0;
+
+        if std_dev > 0.0 && montecarlo_samples > 0 {
+            let mut rng = rand::rng();
+            //let mut hits = 0;
+
+            for _ in 0..montecarlo_samples {
+                let sample = rng.random_range(lower_bound..upper_bound);
+                let density = self.gaussian_density_function(sample, mean, std_dev);
+                //let max_density = self.gaussian_density_function(mean, mean, std_dev);
+                //let threshold = rng.random_range(0.0..max_density);
+
+                //if density >= threshold {
+                //    hits += 1;
+                //}
+
+                result += density;
+            }
+
+            //result = (hits as f64) / (montecarlo_samples as f64);
+
+            result = result * (upper_bound - lower_bound) / ((montecarlo_samples - 1) as f64);
+        } // end if
+
+        result
     }
 }
