@@ -23,6 +23,7 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use publish_subscribe_rs::tools::async_observer;
 use publish_subscribe_rs::tools::histogram;
 use publish_subscribe_rs::tools::periodic_task;
 use publish_subscribe_rs::tools::sync_dictionary;
@@ -175,5 +176,99 @@ fn main() {
         );
 
         subject.publish(&"TestTopic".to_string(), &"TestEvent".to_string());
+    }
+
+    // Test async observer in a periodic task
+    {
+        use async_observer::AsyncObserver;
+        use periodic_task::PeriodicTask;
+        use sync_observer::{SyncObserver, SyncSubject};
+
+        // Define a struct that implements SyncObserver and contains an AsyncObserver
+        struct MyAsyncObserver {
+            observer: std::sync::Arc<AsyncObserver<String, String>>,
+            task: PeriodicTask<String>,
+        }
+
+        // Implement methods for MyAsyncObserver
+        impl MyAsyncObserver {
+            /// Creates a new MyAsyncObserver with an internal AsyncObserver and a periodic task
+            fn new() -> Self {
+                // Create the observer inside an Arc so the periodic task closure can clone it
+                let observer = std::sync::Arc::new(AsyncObserver::new());
+                let observer_clone = observer.clone();
+
+                // Create the periodic task that will process events
+                let task = PeriodicTask::new(
+                    "AsyncObserverTask".to_string(),
+                    std::sync::Arc::new(
+                        move |_ctx: std::sync::Arc<MyContext>, _task_name: &String| {
+                            // Process events directly using the captured observer clone
+                            observer_clone.wait_for_events(500);
+
+                            // Process all available events
+                            if observer_clone.has_events() {
+                                // Pop and process all events
+                                let to_process = observer_clone.pop_all_events();
+
+                                // Process each event
+                                for (topic, event, origin) in to_process {
+                                    println!(
+                                        "Async Observer processed - Topic: {}, Event: {}, Origin: {}",
+                                        topic, event, origin
+                                    );
+                                }
+                            }
+                        },
+                    ),
+                    1000,
+                    std::sync::Arc::new("".to_string()),
+                );
+
+                MyAsyncObserver { observer, task }
+            }
+
+            /// Starts the internal periodic task
+            fn start(&mut self) {
+                self.task.start();
+            }
+        }
+
+        // Implement SyncObserver for MyAsyncObserver by delegating to the internal AsyncObserver
+        impl SyncObserver<String, String> for MyAsyncObserver {
+            fn inform(&self, topic: &String, event: &String, origin: &str) {
+                self.observer.inform(topic, event, origin);
+            }
+        }
+
+        let mut subject = SyncSubject::<String, String>::new("MySubject");
+
+        let mut async_observer = std::sync::Arc::new(MyAsyncObserver::new());
+
+        // Start the internal periodic task
+        std::sync::Arc::get_mut(&mut async_observer)
+            .unwrap()
+            .start();
+
+        subject.subscribe("TestTopic".to_string(), async_observer.clone());
+
+        // subscribe a "debug" closure as a loose-coupled handler
+        subject.subscribe_handler(
+            "TestTopic".to_string(),
+            std::sync::Arc::new(|topic: &String, event: &String, origin: &str| {
+                println!(
+                    "Loose-coupled handler - Topic: {}, Event: {}, Origin: {}",
+                    topic, event, origin
+                );
+            }),
+            "MyHandler",
+        );
+
+        subject.publish(&"TestTopic".to_string(), &"TestEvent1".to_string());
+        subject.publish(&"TestTopic".to_string(), &"TestEvent2".to_string());
+        subject.publish(&"TestTopic".to_string(), &"TestEvent3".to_string());
+
+        // Let the periodic task with closure run for a few seconds
+        std::thread::sleep(std::time::Duration::from_secs(2));
     }
 }

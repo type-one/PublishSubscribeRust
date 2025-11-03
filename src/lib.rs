@@ -24,6 +24,7 @@
 //-----------------------------------------------------------------------------//
 
 pub mod tools {
+    pub mod async_observer;
     pub mod histogram;
     pub mod periodic_task;
     pub mod sync_dictionary;
