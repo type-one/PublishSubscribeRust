@@ -57,15 +57,15 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
     pub fn start(&mut self) {
         let task_function = self.task_function.clone();
         let context = self.context.clone();
-        let stop_task = self.stop_task.clone();
         let task_name = self.task_name.clone();
         let period_ms = self.period_ms;
+        let stop_task = self.stop_task.clone();
 
         self.task_handle = Some(
             std::thread::Builder::new()
                 .name(task_name.clone())
                 .spawn(move || {
-                    Self::run_loop(task_function, &task_name, period_ms, context, stop_task);
+                    Self::run_loop(task_function, task_name, period_ms, context, stop_task);
                 })
                 .expect("Failed to spawn periodic task"),
         );
@@ -74,7 +74,7 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
     // The main loop of the periodic task.
     fn run_loop(
         task_function: std::sync::Arc<TaskFunction<ContextType>>,
-        task_name: &String,
+        task_name: String,
         period_ms: u64,
         context: std::sync::Arc<ContextType>,
         stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
