@@ -31,8 +31,8 @@ pub struct SyncDictionary<K, T> {
 /// Implementation of the SyncDictionary methods.
 impl<K, T> SyncDictionary<K, T>
 where
-    K: Ord + std::hash::Hash + Clone,
-    T: Clone,
+    K: Ord + std::hash::Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
+    T: Clone + std::fmt::Debug,       // Ensure T can be cloned and printed
 {
     /// Creates a new SyncDictionary.
     pub fn new() -> Self {
@@ -109,8 +109,8 @@ where
 /// Implementation of the Default trait for SyncDictionary.
 impl<K, T> Default for SyncDictionary<K, T>
 where
-    K: Ord + std::hash::Hash + Clone,
-    T: Clone,
+    K: Ord + std::hash::Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
+    T: Clone + std::fmt::Debug,       // Ensure T can be cloned and printed
 {
     fn default() -> Self {
         Self::new()

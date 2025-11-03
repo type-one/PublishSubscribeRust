@@ -34,7 +34,7 @@ pub struct Histogram<T> {
 /// Implementation of the Histogram methods.
 impl<T> Histogram<T>
 where
-    T: std::hash::Hash + Eq + Clone + Ord,
+    T: std::hash::Hash + Eq + Clone + Ord, // Ensure T can be used as a key in HashMap and cloned
 {
     /// Creates a new Histogram.
     pub fn new() -> Self {
@@ -89,7 +89,7 @@ where
 /// Implementation of the Default trait for Histogram.
 impl<T> Default for Histogram<T>
 where
-    T: std::hash::Hash + Eq + Clone + Ord,
+    T: std::hash::Hash + Eq + Clone + Ord, // Ensure T can be used as a key in HashMap and cloned
 {
     fn default() -> Self {
         Self::new()
