@@ -45,6 +45,12 @@ fn main() {
     // Test sync queue
     let sync_queue = sync_queue::SyncQueue::<i32>::new();
     sync_queue.enqueue(10);
+    sync_queue.enqueue(20);
+    sync_queue.enqueue(30);
+    let item = sync_queue.dequeue();
+    println!("Dequeued item: {:?}", item);
+    let item = sync_queue.dequeue();
+    println!("Dequeued item: {:?}", item);
     let item = sync_queue.dequeue();
     println!("Dequeued item: {:?}", item);
 
@@ -57,13 +63,25 @@ fn main() {
     // Test sync dictionary
     let dict = sync_dictionary::SyncDictionary::<String, i32>::new();
     dict.insert("key1".to_string(), 42);
+    dict.insert("key2".to_string(), 100);
+    dict.insert("key3".to_string(), 7);
     if let Some(value) = dict.get(&"key1".to_string()) {
         println!("Value for 'key1': {}", value);
+    }
+    if let Some(value) = dict.get(&"key2".to_string()) {
+        println!("Value for 'key2': {}", value);
+    }
+    if let Some(value) = dict.get(&"key3".to_string()) {
+        println!("Value for 'key3': {}", value);
     }
 
     // Test histogram
     let mut hist: histogram::Histogram<i32> = histogram::Histogram::<i32>::new();
     hist.add(42);
+    hist.add(42);
+    hist.add(7);
+    hist.add(100);
+
     if let Some((top_value, count)) = hist.top_value_with_count() {
         println!("Top occurrence: value = {}, count = {}", top_value, count);
     } else {
@@ -73,6 +91,10 @@ fn main() {
     // Test histogram with String type
     let mut hist: histogram::Histogram<String> = histogram::Histogram::<String>::new();
     hist.add("hello".to_string());
+    hist.add("hello".to_string());
+    hist.add("world".to_string());
+    hist.add("rust".to_string());
+    
     if let Some((top_value, count)) = hist.top_value_with_count() {
         println!("Top occurrence: value = {}, count = {}", top_value, count);
     } else {
