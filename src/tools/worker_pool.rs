@@ -23,15 +23,60 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-pub mod tools {
-    pub mod async_observer;
-    pub mod histogram;
-    pub mod periodic_task;
-    pub mod sync_dictionary;
-    pub mod sync_object;
-    pub mod sync_observer;
-    pub mod sync_queue;
-    pub mod task_function;
-    pub mod worker_pool;
-    pub mod worker_task;
+use crate::tools::task_function::TaskFunction;
+struct Job<ContextType: Send + Sync + 'static> {
+    context: std::sync::Arc<ContextType>,
+    task_function: std::sync::Arc<TaskFunction<ContextType>>,
+}
+
+impl<ContextType: Send + Sync + 'static> Job<ContextType> {
+    fn process(self, task_name: &String) {
+        (self.task_function)(self.context.clone(), task_name);
+    }
+}
+/// Struct representing a worker pool.
+pub struct WorkerPool<ContextType: Send + Sync + 'static> {
+    context: std::sync::Arc<ContextType>,
+}
+
+/// Implementation of the WorkerPool methods.
+impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
+    /// Creates a new WorkerPool.
+    pub fn new(context: std::sync::Arc<ContextType>) -> Self {
+        WorkerPool { context }
+    }
+
+    /// Spawns a new worker.
+    #[tokio::main]
+    async fn spawn_worker(&self, task_function: std::sync::Arc<TaskFunction<ContextType>>) {
+        let job = Job {
+            context: self.context.clone(),
+            task_function: task_function.clone(),
+        };
+
+        // https://tokio.rs/tokio/tutorial/spawning
+
+        tokio::spawn(async move {
+            let task_name = std::thread::current().name().unwrap_or("Worker").to_string();
+            job.process(&task_name);
+        });
+    }
+
+    /// Starts the worker pool.
+    pub fn start(&mut self) {
+        // Start the worker pool (e.g., by spawning a certain number of workers)
+    }
+
+    /// Delegates a task function to the worker pool.
+    pub fn delegate(&mut self, task_function: std::sync::Arc<TaskFunction<ContextType>>) {
+        // Enqueue the task function for processing by the worker pool
+        self.spawn_worker(task_function);
+    }
+}
+
+/// Implementation of the Drop trait for WorkerPool.
+impl<ContextType: Send + Sync + 'static> Drop for WorkerPool<ContextType> {
+    fn drop(&mut self) {
+        // Clean up resources when the WorkerPool is dropped
+    }
 }

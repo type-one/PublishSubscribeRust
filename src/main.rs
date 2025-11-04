@@ -33,6 +33,7 @@ use pubsub_rs::tools::sync_dictionary::SyncDictionary;
 use pubsub_rs::tools::sync_object::SyncObject;
 use pubsub_rs::tools::sync_observer::{SyncObserver, SyncSubject};
 use pubsub_rs::tools::sync_queue::SyncQueue;
+use pubsub_rs::tools::worker_pool::WorkerPool;
 use pubsub_rs::tools::worker_task::WorkerTask;
 
 type MyContext = String;
@@ -236,6 +237,48 @@ fn main() {
         std::thread::sleep(Duration::from_secs(1));
 
         worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!(
+                "And a last one '{}' executed with context: {}",
+                task_name, ctx
+            );
+        }));
+
+        // Let the worker task run for a few seconds
+        std::thread::sleep(Duration::from_secs(2));
+    }
+
+    // Test workers pool
+    {
+        let context = Arc::new("My worker pool context".to_string());
+        let mut workers_pool = WorkerPool::new(context.clone());
+
+        workers_pool.start();
+
+        workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!("Worker pool task '{}' executed with context: {}", task_name, ctx);
+        }));
+
+        workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!(
+                "Another worker pool task '{}' executed with context: {}",
+                task_name, ctx
+            );
+        }));
+
+        // Let the workers pool run for a few seconds
+        std::thread::sleep(Duration::from_secs(2));
+
+        workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!(
+                "Yet another worker pool task '{}' executed with context: {}",
+                task_name, ctx
+            );
+        }));
+
+        // Let the worker task run for a few seconds
+        std::thread::sleep(Duration::from_secs(1));
+
+        workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "And a last one '{}' executed with context: {}",
                 task_name, ctx
