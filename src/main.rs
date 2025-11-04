@@ -23,19 +23,22 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use pubsub_rs::tools::async_observer;
-use pubsub_rs::tools::histogram;
-use pubsub_rs::tools::periodic_task;
-use pubsub_rs::tools::sync_dictionary;
-use pubsub_rs::tools::sync_object;
-use pubsub_rs::tools::sync_observer;
-use pubsub_rs::tools::sync_queue;
-use pubsub_rs::tools::worker_task;
+use std::sync::Arc;
+use std::time::Duration;
+
+use pubsub_rs::tools::async_observer::AsyncObserver;
+use pubsub_rs::tools::histogram::Histogram;
+use pubsub_rs::tools::periodic_task::PeriodicTask;
+use pubsub_rs::tools::sync_dictionary::SyncDictionary;
+use pubsub_rs::tools::sync_object::SyncObject;
+use pubsub_rs::tools::sync_observer::{SyncObserver, SyncSubject};
+use pubsub_rs::tools::sync_queue::SyncQueue;
+use pubsub_rs::tools::worker_task::WorkerTask;
 
 type MyContext = String;
 
 /// A sample periodic function to be used with the PeriodicTask.
-fn my_periodic_function(context: std::sync::Arc<MyContext>, task_name: &String) {
+fn my_periodic_function(context: Arc<MyContext>, task_name: &String) {
     println!(
         "Periodic task '{}' executed with context: {}",
         task_name, context
@@ -59,7 +62,7 @@ fn generate_gaussian_samples(mean: f64, std_dev: f64, count: usize) -> Vec<i32> 
 /// Main entry
 fn main() {
     // Test sync queue
-    let sync_queue = sync_queue::SyncQueue::<i32>::new();
+    let sync_queue = SyncQueue::<i32>::new();
     sync_queue.enqueue(10);
     sync_queue.enqueue(20);
     sync_queue.enqueue(30);
@@ -71,13 +74,13 @@ fn main() {
     println!("Dequeued item: {:?}", item);
 
     // Test sync object
-    let mut sync = sync_object::SyncObject::new(false);
+    let mut sync = SyncObject::new(false);
     //sync.wait_for_signal();
 
     sync.wait_for_signal_timeout(1000);
 
     // Test sync dictionary
-    let dict = sync_dictionary::SyncDictionary::<String, i32>::new();
+    let dict = SyncDictionary::<String, i32>::new();
     dict.insert("key1".to_string(), 42);
     dict.insert("key2".to_string(), 100);
     dict.insert("key3".to_string(), 7);
@@ -92,7 +95,7 @@ fn main() {
     }
 
     // Test histogram
-    let mut hist = histogram::Histogram::<u64>::new();
+    let mut hist = Histogram::<u64>::new();
     hist.add(42);
     hist.add(42);
     hist.add(7);
@@ -108,7 +111,7 @@ fn main() {
 
     println!("Generating Gaussian samples (mean 50.0, std_dev 5.0)...");
 
-    let mut hist = histogram::Histogram::<i32>::new();
+    let mut hist = Histogram::<i32>::new();
 
     // Generate Gaussian samples and add them to the histogram
     let samples = generate_gaussian_samples(50.0, 5.0, 100000);
@@ -152,7 +155,7 @@ fn main() {
     );
 
     // Test histogram with String type
-    let mut hist: histogram::Histogram<String> = histogram::Histogram::<String>::new();
+    let mut hist: Histogram<String> = Histogram::<String>::new();
     hist.add("hello".to_string());
     hist.add("hello".to_string());
     hist.add("world".to_string());
@@ -166,10 +169,10 @@ fn main() {
 
     // Test periodic task with a function pointer
     {
-        let context = std::sync::Arc::new("My periodic task context".to_string());
-        let mut task = periodic_task::PeriodicTask::new(
+        let context = Arc::new("My periodic task context".to_string());
+        let mut task = PeriodicTask::new(
             "MyPeriodicTask".to_string(),
-            std::sync::Arc::new(my_periodic_function),
+            Arc::new(my_periodic_function),
             1000,
             context.clone(),
         );
@@ -177,15 +180,15 @@ fn main() {
         task.start();
 
         // Let the periodic task run for a few seconds
-        std::thread::sleep(std::time::Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(5));
     }
 
     // Test periodic task with a closure
     {
-        let context_closure = std::sync::Arc::new("Closure context".to_string());
-        let mut task_closure = periodic_task::PeriodicTask::new(
+        let context_closure = Arc::new("Closure context".to_string());
+        let mut task_closure = PeriodicTask::new(
             "ClosurePeriodicTask".to_string(),
-            std::sync::Arc::new(|ctx: std::sync::Arc<MyContext>, task_name: &String| {
+            Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
                 println!(
                     "Periodic task '{}' executed with context: {}",
                     task_name, ctx
@@ -198,25 +201,25 @@ fn main() {
         task_closure.start();
 
         // Let the periodic task with closure run for a few seconds
-        std::thread::sleep(std::time::Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(5));
     }
 
     // Test worker task
     {
-        let context = std::sync::Arc::new("My worker task context".to_string());
+        let context = Arc::new("My worker task context".to_string());
         let mut worker_task =
-            worker_task::WorkerTask::new("MyWorkerTask".to_string(), context.clone());
+            WorkerTask::new("MyWorkerTask".to_string(), context.clone());
 
         worker_task.start();
 
-        worker_task.delegate(std::sync::Arc::new(
-            |ctx: std::sync::Arc<MyContext>, task_name: &String| {
+        worker_task.delegate(Arc::new(
+            |ctx: Arc<MyContext>, task_name: &String| {
                 println!("Worker task '{}' executed with context: {}", task_name, ctx);
             },
         ));
 
-        worker_task.delegate(std::sync::Arc::new(
-            |ctx: std::sync::Arc<MyContext>, task_name: &String| {
+        worker_task.delegate(Arc::new(
+            |ctx: Arc<MyContext>, task_name: &String| {
                 println!(
                     "Another worker task '{}' executed with context: {}",
                     task_name, ctx
@@ -225,10 +228,10 @@ fn main() {
         ));
 
         // Let the worker task run for a few seconds
-        std::thread::sleep(std::time::Duration::from_secs(2));
-        
-        worker_task.delegate(std::sync::Arc::new(
-            |ctx: std::sync::Arc<MyContext>, task_name: &String| {
+        std::thread::sleep(Duration::from_secs(2));
+
+        worker_task.delegate(Arc::new(
+            |ctx: Arc<MyContext>, task_name: &String| {
                 println!(
                     "Yet another worker task '{}' executed with context: {}",
                     task_name, ctx
@@ -237,10 +240,10 @@ fn main() {
         ));
 
         // Let the worker task run for a few seconds
-        std::thread::sleep(std::time::Duration::from_secs(1));        
+        std::thread::sleep(Duration::from_secs(1));        
         
-        worker_task.delegate(std::sync::Arc::new(
-            |ctx: std::sync::Arc<MyContext>, task_name: &String| {
+        worker_task.delegate(Arc::new(
+            |ctx: Arc<MyContext>, task_name: &String| {
                 println!(
                     "And a last one '{}' executed with context: {}",
                     task_name, ctx
@@ -249,13 +252,11 @@ fn main() {
         ));        
 
         // Let the worker task run for a few seconds
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        std::thread::sleep(Duration::from_secs(2));
     }
 
     // Test sync observer and subject
     {
-        use sync_observer::{SyncObserver, SyncSubject};
-
         struct MyObserver;
 
         impl SyncObserver<String, String> for MyObserver {
@@ -269,13 +270,13 @@ fn main() {
 
         let mut subject = SyncSubject::<String, String>::new("MySyncSubject");
 
-        let observer = std::sync::Arc::new(MyObserver);
+        let observer = Arc::new(MyObserver);
         subject.subscribe("TestTopic".to_string(), observer.clone());
 
         // subscribe a closure as a loose-coupled handler
         subject.subscribe_handler(
             "TestTopic".to_string(),
-            std::sync::Arc::new(|topic: &String, event: &String, origin: &str| {
+            Arc::new(|topic: &String, event: &String, origin: &str| {
                 println!(
                     "Loose-coupled handler - Topic: {}, Event: {}, Origin: {}",
                     topic, event, origin
@@ -289,13 +290,9 @@ fn main() {
 
     // Test async observer in a periodic task
     {
-        use async_observer::AsyncObserver;
-        use periodic_task::PeriodicTask;
-        use sync_observer::{SyncObserver, SyncSubject};
-
         // Define a struct that implements SyncObserver and contains an AsyncObserver
         struct MyAsyncObserver {
-            observer: std::sync::Arc<AsyncObserver<String, String>>,
+            observer: Arc<AsyncObserver<String, String>>,
             task: PeriodicTask<String>,
         }
 
@@ -304,14 +301,14 @@ fn main() {
             /// Creates a new MyAsyncObserver with an internal AsyncObserver and a periodic task
             fn new() -> Self {
                 // Create the observer inside an Arc so the periodic task closure can clone it
-                let observer = std::sync::Arc::new(AsyncObserver::new());
+                let observer = Arc::new(AsyncObserver::new());
                 let observer_clone = observer.clone();
 
                 // Create the periodic task that will process events
                 let task = PeriodicTask::new(
                     "AsyncObserverTask".to_string(),
-                    std::sync::Arc::new(
-                        move |_ctx: std::sync::Arc<MyContext>, _task_name: &String| {
+                    Arc::new(
+                        move |_ctx: Arc<MyContext>, _task_name: &String| {
                             // Process events directly using the captured observer clone
                             observer_clone.wait_for_events(500);
 
@@ -331,7 +328,7 @@ fn main() {
                         },
                     ),
                     1000,
-                    std::sync::Arc::new("".to_string()),
+                    Arc::new("".to_string()),
                 );
 
                 MyAsyncObserver { observer, task }
@@ -352,10 +349,10 @@ fn main() {
 
         let mut subject = SyncSubject::<String, String>::new("MySubject");
 
-        let mut async_observer = std::sync::Arc::new(MyAsyncObserver::new());
+        let mut async_observer = Arc::new(MyAsyncObserver::new());
 
         // Start the internal periodic task
-        std::sync::Arc::get_mut(&mut async_observer)
+        Arc::get_mut(&mut async_observer)
             .unwrap()
             .start();
 
@@ -364,7 +361,7 @@ fn main() {
         // subscribe a "debug" closure as a loose-coupled handler
         subject.subscribe_handler(
             "TestTopic".to_string(),
-            std::sync::Arc::new(|topic: &String, event: &String, origin: &str| {
+            Arc::new(|topic: &String, event: &String, origin: &str| {
                 println!(
                     "Loose-coupled handler - Topic: {}, Event: {}, Origin: {}",
                     topic, event, origin
@@ -378,6 +375,6 @@ fn main() {
         subject.publish(&"TestTopic".to_string(), &"TestEvent3".to_string());
 
         // Let the periodic task with closure run for a few seconds
-        std::thread::sleep(std::time::Duration::from_secs(2));
+        std::thread::sleep(Duration::from_secs(2));
     }
 }

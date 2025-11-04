@@ -23,11 +23,13 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::ops::Add;
 use rand::Rng;
-
 /// A simple histogram implementation to track occurrences of values.
 pub struct Histogram<T> {
-    occurences: std::collections::HashMap<T, usize>,
+    occurences: HashMap<T, usize>,
     total_count: usize,
     top_occurence: Option<(T, usize)>,
     top_value: Option<T>,
@@ -36,12 +38,12 @@ pub struct Histogram<T> {
 /// Implementation of the Histogram methods.
 impl<T> Histogram<T>
 where
-    T: std::hash::Hash + Eq + Clone + Ord, // Ensure T can be used as a key in HashMap and cloned
+    T: Hash + Eq + Clone + Ord, // Ensure T can be used as a key in HashMap and cloned
 {
     /// Creates a new Histogram.
     pub fn new() -> Self {
         Histogram {
-            occurences: std::collections::HashMap::new(),
+            occurences: HashMap::new(),
             total_count: 0,
             top_occurence: None,
             top_value: None,
@@ -101,7 +103,7 @@ where
 /// Implementation of the Default trait for Histogram.
 impl<T> Default for Histogram<T>
 where
-    T: std::hash::Hash + Eq + Clone + Ord, // Ensure T can be used as a key in HashMap and cloned
+    T: Hash + Eq + Clone + Ord, // Ensure T can be used as a key in HashMap and cloned
 {
     fn default() -> Self {
         Self::new()
@@ -111,7 +113,7 @@ where
 /// Specialized implementation of statistical methods for Histogram with primitive integer values (any size, signed or not).
 impl<T> Histogram<T>
 where
-    T: std::hash::Hash + Eq + Clone + Ord + std::ops::Add + Copy + Into<f64>, // Ensure T is a primitive integer AND can be used as a key in HashMap and cloned
+    T: Hash + Eq + Clone + Ord + Add + Copy + Into<f64>, // Ensure T is a primitive integer AND can be used as a key in HashMap and cloned
 {
     /// Calculates the average of the sampled integer values.
     pub fn average(&self) -> f64 {

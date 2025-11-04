@@ -23,6 +23,8 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::sync::Arc;
+
 /// Define the type for the task function used in tasks.
 pub type TaskFunction<ContextType> =
-    dyn Fn(std::sync::Arc<ContextType>, &String) + Send + Sync + 'static;
+    dyn Fn(Arc<ContextType>, &String) + Send + Sync + 'static;

@@ -23,6 +23,11 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::cmp::Eq;
+use std::hash::Hash;
+use std::sync::{Arc, Mutex};
+use multimap::MultiMap;
+
 // https://juanchopanzacpp.wordpress.com/2013/02/24/simple-observer-pattern-implementation-c11/
 // http://www.codeproject.com/Articles/328365/Understanding-and-Implementing-Observer-Pattern
 
@@ -34,7 +39,7 @@ pub trait SyncObserver<Topic, Evt> {
 /// Type alias for a synchronous subscription.
 pub type SyncSubscription<Topic, Evt> = (
     Topic,
-    std::sync::Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
+    Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
 );
 
 /// Type alias for a loose-coupled handler function.
@@ -42,21 +47,20 @@ pub type LooseCoupledHandler<Topic, Evt> = dyn Fn(&Topic, &Evt, &str) + Send + S
 
 /// Struct representing a synchronous subject.
 pub struct SyncSubject<Topic, Evt> {
-    mutex: std::sync::Mutex<()>,
-    subscribers:
-        multimap::MultiMap<Topic, std::sync::Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>>,
-    handlers: multimap::MultiMap<Topic, (std::sync::Arc<LooseCoupledHandler<Topic, Evt>>, String)>,
+    mutex: Mutex<()>,
+    subscribers: MultiMap<Topic, Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>>,
+    handlers: MultiMap<Topic, (Arc<LooseCoupledHandler<Topic, Evt>>, String)>,
     name: String,
 }
 
 /// Implementation of the SyncSubject methods.
-impl<Topic: std::cmp::Eq + std::hash::Hash + Clone, Evt> SyncSubject<Topic, Evt> {
+impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     /// Creates a new SyncSubject.
     pub fn new(name: &str) -> Self {
         SyncSubject {
-            mutex: std::sync::Mutex::new(()),
-            subscribers: multimap::MultiMap::new(),
-            handlers: multimap::MultiMap::new(),
+            mutex: Mutex::new(()),
+            subscribers: MultiMap::new(),
+            handlers: MultiMap::new(),
             name: name.to_string(),
         }
     }
@@ -65,7 +69,7 @@ impl<Topic: std::cmp::Eq + std::hash::Hash + Clone, Evt> SyncSubject<Topic, Evt>
     pub fn subscribe(
         &mut self,
         topic: Topic,
-        observer: std::sync::Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
+        observer: Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
     ) {
         let _lock = self.mutex.lock().unwrap();
         self.subscribers.insert(topic, observer);
@@ -75,15 +79,15 @@ impl<Topic: std::cmp::Eq + std::hash::Hash + Clone, Evt> SyncSubject<Topic, Evt>
     pub fn unsubscribe(
         &mut self,
         topic: &Topic,
-        observer: &std::sync::Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
+        observer: &Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
     ) {
         let _lock = self.mutex.lock().unwrap();
         if let Some(observers) = self.subscribers.get_vec(topic) {
             // Keep only those observers that are NOT the one to remove.
-            let retained: Vec<std::sync::Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>> =
+            let retained: Vec<Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>> =
                 observers
                     .iter()
-                    .filter(|o| !std::sync::Arc::ptr_eq(o, observer))
+                    .filter(|o| !Arc::ptr_eq(o, observer))
                     .cloned()
                     .collect();
 
@@ -99,7 +103,7 @@ impl<Topic: std::cmp::Eq + std::hash::Hash + Clone, Evt> SyncSubject<Topic, Evt>
     pub fn subscribe_handler(
         &mut self,
         topic: Topic,
-        handler: std::sync::Arc<LooseCoupledHandler<Topic, Evt>>,
+        handler: Arc<LooseCoupledHandler<Topic, Evt>>,
         handler_name: &str,
     ) {
         let _lock = self.mutex.lock().unwrap();
@@ -112,7 +116,7 @@ impl<Topic: std::cmp::Eq + std::hash::Hash + Clone, Evt> SyncSubject<Topic, Evt>
         let _lock = self.mutex.lock().unwrap();
         if let Some(handlers) = self.handlers.get_vec(topic) {
             // Keep only those handlers whose name does NOT match handler_name.
-            let retained: Vec<(std::sync::Arc<LooseCoupledHandler<Topic, Evt>>, String)> = handlers
+            let retained: Vec<(Arc<LooseCoupledHandler<Topic, Evt>>, String)> = handlers
                 .iter()
                 .filter(|(_, name)| name != handler_name)
                 .cloned()

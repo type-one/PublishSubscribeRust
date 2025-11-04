@@ -23,14 +23,18 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
+
 use crate::tools::task_function::TaskFunction;
 /// Struct representing a periodic task.
 pub struct PeriodicTask<ContextType> {
     task_name: String,
-    task_function: std::sync::Arc<TaskFunction<ContextType>>,
+    task_function: Arc<TaskFunction<ContextType>>,
     period_ms: u64,
-    context: std::sync::Arc<ContextType>,
-    stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    context: Arc<ContextType>,
+    stop_task: Arc<AtomicBool>,
     task_handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -39,16 +43,16 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
     /// Creates a new PeriodicTask.
     pub fn new(
         task_name: String,
-        task_function: std::sync::Arc<TaskFunction<ContextType>>,
+        task_function: Arc<TaskFunction<ContextType>>,
         period_ms: u64,
-        context: std::sync::Arc<ContextType>,
+        context: Arc<ContextType>,
     ) -> Self {
         PeriodicTask {
             task_name,
             task_function,
             period_ms,
             context: context.clone(),
-            stop_task: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            stop_task: Arc::new(AtomicBool::new(false)),
             task_handle: None,
         }
     }
@@ -73,26 +77,26 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
 
     // The main loop of the periodic task.
     fn run_loop(
-        task_function: std::sync::Arc<TaskFunction<ContextType>>,
+        task_function: Arc<TaskFunction<ContextType>>,
         task_name: String,
         period_ms: u64,
-        context: std::sync::Arc<ContextType>,
-        stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        context: Arc<ContextType>,
+        stop_task: Arc<AtomicBool>,
     ) {
-        let start_time = std::time::Instant::now();
-        let mut deadline = start_time + std::time::Duration::from_millis(period_ms);
+        let start_time = Instant::now();
+        let mut deadline = start_time + Duration::from_millis(period_ms);
 
         // periodic task loop
-        while !stop_task.load(std::sync::atomic::Ordering::Acquire) {
-            let mut current_time = std::time::Instant::now();
+        while !stop_task.load(Ordering::Acquire) {
+            let mut current_time = Instant::now();
 
             // active wait until the deadline is reached
-            while !stop_task.load(std::sync::atomic::Ordering::Acquire) && current_time < deadline {
-                current_time = std::time::Instant::now();
+            while !stop_task.load(Ordering::Acquire) && current_time < deadline {
+                current_time = Instant::now();
             }
 
             // exit if stop requested
-            if stop_task.load(std::sync::atomic::Ordering::Acquire) {
+            if stop_task.load(Ordering::Acquire) {
                 break;
             }
 
@@ -100,15 +104,15 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
             (task_function)(context.clone(), &task_name);
 
             // compute next deadline
-            current_time = std::time::Instant::now();
-            deadline += std::time::Duration::from_millis(period_ms);
+            current_time = Instant::now();
+            deadline += Duration::from_millis(period_ms);
 
             // wait period
             if deadline > current_time {
                 let remaining_time = (deadline - current_time).as_micros();
                 // wait 90% of the remaining time to avoid busy waiting
                 // sleep until we are close to the deadline
-                std::thread::sleep(std::time::Duration::from_micros(
+                std::thread::sleep(Duration::from_micros(
                     (remaining_time * 90 / 100) as u64,
                 ));
             } // end if wait period needed
@@ -119,9 +123,11 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
 /// Implementation of the Drop trait for PeriodicTask.
 impl<ContextType> Drop for PeriodicTask<ContextType> {
     fn drop(&mut self) {
-        //println!("Stopping periodic task: {}", self.task_name);
+        // signal the task to stop
         self.stop_task
-            .store(true, std::sync::atomic::Ordering::Release);
+            .store(true, Ordering::Release);
+
+        // wait for the task to finish
         if let Some(handle) = self.task_handle.take() {
             handle.join().unwrap();
         }

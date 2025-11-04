@@ -23,9 +23,11 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::collections::VecDeque;
+use std::sync::Mutex;
 /// Thread-safe queue implementation using standard Rust constructs.
 pub struct SyncQueue<T> {
-    queue: std::sync::Mutex<std::collections::VecDeque<T>>,
+    queue: Mutex<VecDeque<T>>,
 }
 
 /// Implementation of the SyncQueue methods.
@@ -33,7 +35,7 @@ impl<T> SyncQueue<T> {
     /// Creates a new SyncQueue.
     pub fn new() -> Self {
         SyncQueue {
-            queue: std::sync::Mutex::new(std::collections::VecDeque::new()),
+            queue: Mutex::new(VecDeque::new()),
         }
     }
 

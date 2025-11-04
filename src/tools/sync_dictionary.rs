@@ -23,21 +23,25 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::collections::{BTreeMap, HashMap};
+use std::hash::Hash;
+use std::fmt::Debug;
+use std::sync::Mutex;
 /// Thread-safe dictionary implementation using standard Rust constructs.
 pub struct SyncDictionary<K, T> {
-    dictionary: std::sync::Mutex<std::collections::BTreeMap<K, T>>,
+    dictionary: Mutex<BTreeMap<K, T>>,
 }
 
 /// Implementation of the SyncDictionary methods.
 impl<K, T> SyncDictionary<K, T>
 where
-    K: Ord + std::hash::Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
-    T: Clone + std::fmt::Debug,       // Ensure T can be cloned and printed
+    K: Ord + Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
+    T: Clone + Debug,       // Ensure T can be cloned and printed
 {
     /// Creates a new SyncDictionary.
     pub fn new() -> Self {
         SyncDictionary {
-            dictionary: std::sync::Mutex::new(std::collections::BTreeMap::new()),
+            dictionary: Mutex::new(BTreeMap::new()),
         }
     }
 
@@ -78,7 +82,7 @@ where
     }
 
     /// Adds key-value pairs from a BTreeMap to the dictionary.
-    pub fn add_btree_collection(&self, other: &std::collections::BTreeMap<K, T>) {
+    pub fn add_btree_collection(&self, other: &BTreeMap<K, T>) {
         let mut dict_guard = self.dictionary.lock().unwrap();
         for (key, value) in other.iter() {
             dict_guard.insert(key.clone(), value.clone());
@@ -86,7 +90,7 @@ where
     }
 
     /// Adds key-value pairs from a HashMap to the dictionary.
-    pub fn add_hash_collection(&self, other: &std::collections::HashMap<K, T>) {
+    pub fn add_hash_collection(&self, other: &HashMap<K, T>) {
         let mut dict_guard = self.dictionary.lock().unwrap();
         for (key, value) in other.iter() {
             dict_guard.insert(key.clone(), value.clone());
@@ -94,13 +98,13 @@ where
     }
 
     /// Converts the dictionary to a BTreeMap.
-    pub fn to_btree_collection(&self) -> std::collections::BTreeMap<K, T> {
+    pub fn to_btree_collection(&self) -> BTreeMap<K, T> {
         let dict_guard = self.dictionary.lock().unwrap();
         dict_guard.clone()
     }
 
     /// Converts the dictionary to a HashMap.
-    pub fn to_hash_collection(&self) -> std::collections::HashMap<K, T> {
+    pub fn to_hash_collection(&self) -> HashMap<K, T> {
         let dict_guard = self.dictionary.lock().unwrap();
         dict_guard
             .iter()
@@ -112,8 +116,8 @@ where
 /// Implementation of the Default trait for SyncDictionary.
 impl<K, T> Default for SyncDictionary<K, T>
 where
-    K: Ord + std::hash::Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
-    T: Clone + std::fmt::Debug,       // Ensure T can be cloned and printed
+    K: Ord + Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
+    T: Clone + Debug,       // Ensure T can be cloned and printed
 {
     fn default() -> Self {
         Self::new()

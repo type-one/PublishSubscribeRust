@@ -23,6 +23,8 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::sync::{Arc, Mutex};
+
 use crate::tools::sync_object::SyncObject;
 use crate::tools::sync_observer::SyncObserver;
 use crate::tools::sync_queue::SyncQueue;
@@ -32,8 +34,8 @@ pub type EventEntry<Topic, Evt> = (Topic, Evt, String);
 
 /// Struct representing an asynchronous observer.
 pub struct AsyncObserver<Topic, Evt> {
-    wakeable_sync_object: std::sync::Arc<std::sync::Mutex<SyncObject>>,
-    event_queue: std::sync::Arc<SyncQueue<EventEntry<Topic, Evt>>>,
+    wakeable_sync_object: Arc<Mutex<SyncObject>>,
+    event_queue: Arc<SyncQueue<EventEntry<Topic, Evt>>>,
 }
 
 /// Implementation of the AsyncObserver methods.
@@ -41,10 +43,10 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
     /// Creates a new AsyncObserver.
     pub fn new() -> Self {
         AsyncObserver {
-            wakeable_sync_object: std::sync::Arc::new(std::sync::Mutex::new(SyncObject::new(
+            wakeable_sync_object: Arc::new(Mutex::new(SyncObject::new(
                 false,
             ))),
-            event_queue: std::sync::Arc::new(SyncQueue::new()),
+            event_queue: Arc::new(SyncQueue::new()),
         }
     }
 
