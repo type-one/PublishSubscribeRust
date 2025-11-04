@@ -302,6 +302,7 @@ fn main() {
             fn new() -> Self {
                 // Create the observer inside an Arc so the periodic task closure can clone it
                 let observer = Arc::new(AsyncObserver::new());
+                // Clone the observer (shared ptr) for use in the periodic task
                 let observer_clone = observer.clone();
 
                 // Create the periodic task that will process events
@@ -373,6 +374,20 @@ fn main() {
         subject.publish(&"TestTopic".to_string(), &"TestEvent1".to_string());
         subject.publish(&"TestTopic".to_string(), &"TestEvent2".to_string());
         subject.publish(&"TestTopic".to_string(), &"TestEvent3".to_string());
+
+        // Let the periodic task with closure run for a few seconds
+        std::thread::sleep(Duration::from_secs(2));
+
+        subject.publish(&"TestTopic".to_string(), &"TestEvent4".to_string());
+        subject.publish(&"TestTopic".to_string(), &"TestEvent5".to_string());
+        subject.publish(&"TestTopic".to_string(), &"TestEvent6".to_string());
+
+        // Let the periodic task with closure run for a few seconds
+        std::thread::sleep(Duration::from_secs(2));
+
+        subject.publish(&"TestTopic".to_string(), &"TestEvent7".to_string());
+        subject.publish(&"TestTopic".to_string(), &"TestEvent8".to_string());
+        subject.publish(&"TestTopic".to_string(), &"TestEvent9".to_string());
 
         // Let the periodic task with closure run for a few seconds
         std::thread::sleep(Duration::from_secs(2));
