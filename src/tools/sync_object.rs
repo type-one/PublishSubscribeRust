@@ -76,13 +76,22 @@ impl SyncObject {
         *signaled_guard = self.stop.load(std::sync::atomic::Ordering::Acquire);
     }
 
-    /// Sends a signal to wake up waiting threads.
+    /// Sends a signal to wake up one of the waiting threads.
     pub fn signal(&mut self) {
         {
             let mut signaled_guard = self.signaled.lock().unwrap();
             *signaled_guard = true;
         }
         self.condvar.notify_one();
+    }
+
+    /// Sends a signal to wake up all waiting threads.
+    pub fn signal_all(&mut self) {
+        {
+            let mut signaled_guard = self.signaled.lock().unwrap();
+            *signaled_guard = true;
+        }
+        self.condvar.notify_all();
     }
 }
 
@@ -96,5 +105,13 @@ impl Drop for SyncObject {
             self.stop.store(true, std::sync::atomic::Ordering::Release);
         }
         self.condvar.notify_all();
+    }
+}
+
+/// Implementation of the Default trait for SyncObject.
+impl Default for SyncObject {
+    /// Creates a default SyncObject with an initial state of false.
+    fn default() -> Self {
+        Self::new(false)
     }
 }

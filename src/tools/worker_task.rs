@@ -28,7 +28,7 @@ use crate::tools::sync_queue::SyncQueue;
 use crate::tools::task_function::TaskFunction;
 
 /// Struct representing a worker task.
-pub struct WorkerTask<ContextType> {
+pub struct WorkerTask<ContextType: Send + Sync + 'static> {
     task_name: String,
     context: std::sync::Arc<ContextType>,
     work_sync_object: std::sync::Arc<std::sync::Mutex<SyncObject>>,
@@ -53,17 +53,17 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
 
     /// Starts the worker task.
     pub fn start(&mut self) {
-        let context = self.context.clone();
-        let stop_task = self.stop_task.clone();
         let task_name = self.task_name.clone();
         let work_sync_object = self.work_sync_object.clone();
         let work_queue = self.work_queue.clone();
+        let stop_task = self.stop_task.clone();
+        let context = self.context.clone();
 
         self.task_handle = Some(
             std::thread::Builder::new()
                 .name(task_name.clone())
                 .spawn(move || {
-                    Self::run_loop(&task_name, context, stop_task, work_sync_object, work_queue);
+                    Self::run_loop(work_sync_object, work_queue, stop_task, context, task_name);
                 })
                 .expect("Failed to spawn worker task"),
         );
@@ -78,43 +78,57 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
 
     // The main loop of the worker task.
     fn run_loop(
-        task_name: &String,
-        context: std::sync::Arc<ContextType>,
-        stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
         work_sync_object: std::sync::Arc<std::sync::Mutex<SyncObject>>,
         work_queue: std::sync::Arc<SyncQueue<std::sync::Arc<TaskFunction<ContextType>>>>,
+        stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        context: std::sync::Arc<ContextType>,
+        task_name: String,
     ) {
         while !stop_task.load(std::sync::atomic::Ordering::Acquire) {
             // Wait for work
             {
-                //work_sync_object.lock().unwrap().wait_for_signal();
+                //println!("Worker task '{}' waiting for signal...", task_name);
+                //work_sync_object.lock().unwrap().wait_for_signal(); //
                 work_sync_object
                     .lock()
                     .unwrap()
                     .wait_for_signal_timeout(1000);
             }
             // Process all tasks in the queue
+            //println!("Worker task '{}' woke up to process tasks.", task_name);
             while let Some(task_function) = work_queue.dequeue()
                 && !stop_task.load(std::sync::atomic::Ordering::Acquire)
             {
-                (task_function)(context.clone(), task_name);
+                (task_function)(context.clone(), &task_name);
             }
         } // run loop
     }
 }
 
 /// Implementation of the Drop trait for WorkerTask.
-impl<ContextType> Drop for WorkerTask<ContextType> {
+impl<ContextType: Send + Sync + 'static> Drop for WorkerTask<ContextType> {
     fn drop(&mut self) {
+        // Stop the worker task
         //println!("Stopping worker task: {}", self.task_name);
         self.stop_task
             .store(true, std::sync::atomic::Ordering::Release);
-        // signal the worker task to wake up
-        self.work_sync_object.lock().unwrap().signal();
+
+        //println!("Signaling worker task to wake up: {}", self.task_name);
+        // Wake up the worker task
+        self.work_sync_object.lock().unwrap().signal_all();
+
+        //self.delegate(std::sync::Arc::new(|_, _| {
+        // no-op task to ensure the worker wakes up
+        //println!("No-op task executed to wake up the worker.");
+        //}));
+
+        std::thread::yield_now();
 
         // wait for the worker task to finish
+        //println!("Waiting for worker task to finish: {}", self.task_name);
         if let Some(handle) = self.task_handle.take() {
             handle.join().unwrap();
         }
+        //println!("Worker task stopped: {}", self.task_name);
     }
 }
