@@ -29,9 +29,9 @@
 /// a synchronization mechanism using standard Rust constructs such as mutexes and
 /// condition variables.
 pub struct SyncObject {
-    mutex: std::sync::Mutex<bool>,
+    signaled: std::sync::Mutex<bool>,
     condvar: std::sync::Condvar,
-    stop: bool,
+    stop: std::sync::atomic::AtomicBool,
 }
 
 /// Implementation of the SyncObject methods.
@@ -39,48 +39,48 @@ impl SyncObject {
     /// Creates a new SyncObject with the specified initial state.
     pub fn new(initial_state: bool) -> Self {
         SyncObject {
-            mutex: std::sync::Mutex::new(initial_state),
+            signaled: std::sync::Mutex::new(initial_state),
             condvar: std::sync::Condvar::new(),
-            stop: false,
+            stop: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
     /// Waits for a signal to be received.
     pub fn wait_for_signal(&mut self) {
-        let mut guard = self.mutex.lock().unwrap();
+        let mut signaled_guard = self.signaled.lock().unwrap();
 
-        while !*guard {
-            guard = self.condvar.wait(guard).unwrap();
+        while !*signaled_guard {
+            signaled_guard = self.condvar.wait(signaled_guard).unwrap();
         }
 
-        *guard = self.stop;
+        *signaled_guard = self.stop.load(std::sync::atomic::Ordering::Acquire);
     }
 
     /// Waits for a signal to be received with a timeout.
     pub fn wait_for_signal_timeout(&mut self, timeout_ms: u64) {
-        let mut guard = self.mutex.lock().unwrap();
+        let mut signaled_guard = self.signaled.lock().unwrap();
 
-        while !*guard {
-            let (new_guard, timeout_status) = self
+        while !*signaled_guard {
+            let (new_signaled_guard, timeout_status) = self
                 .condvar
-                .wait_timeout(guard, std::time::Duration::from_millis(timeout_ms))
+                .wait_timeout(signaled_guard, std::time::Duration::from_millis(timeout_ms))
                 .unwrap();
 
-            guard = new_guard; // move
+            signaled_guard = new_signaled_guard; // move
 
             if timeout_status.timed_out() {
                 break;
             }
         }
 
-        *guard = self.stop;
+        *signaled_guard = self.stop.load(std::sync::atomic::Ordering::Acquire);
     }
 
     /// Sends a signal to wake up waiting threads.
     pub fn signal(&mut self) {
         {
-            let mut guard = self.mutex.lock().unwrap();
-            *guard = true;
+            let mut signaled_guard = self.signaled.lock().unwrap();
+            *signaled_guard = true;
         }
         self.condvar.notify_one();
     }
@@ -91,9 +91,9 @@ impl Drop for SyncObject {
     /// Cleans up the SyncObject by signaling all waiting threads to stop.
     fn drop(&mut self) {
         {
-            let mut guard = self.mutex.lock().unwrap();
-            *guard = true;
-            self.stop = true;
+            let mut signaled_guard = self.signaled.lock().unwrap();
+            *signaled_guard = true;
+            self.stop.store(true, std::sync::atomic::Ordering::Release);
         }
         self.condvar.notify_all();
     }

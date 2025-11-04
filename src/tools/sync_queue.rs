@@ -39,32 +39,32 @@ impl<T> SyncQueue<T> {
 
     /// Adds an item to the back of the queue.
     pub fn enqueue(&self, item: T) {
-        let mut guard = self.queue.lock().unwrap();
-        guard.push_back(item);
+        let mut queue_guard = self.queue.lock().unwrap();
+        queue_guard.push_back(item);
     }
 
     /// Removes and returns an item from the front of the queue.
     pub fn dequeue(&self) -> Option<T> {
-        let mut guard = self.queue.lock().unwrap();
-        guard.pop_front()
+        let mut queue_guard = self.queue.lock().unwrap();
+        queue_guard.pop_front()
     }
 
     /// Checks if the queue is empty.
     pub fn is_empty(&self) -> bool {
-        let guard = self.queue.lock().unwrap();
-        guard.is_empty()
+        let queue_guard = self.queue.lock().unwrap();
+        queue_guard.is_empty()
     }
 
     /// Returns the size of the queue.
     pub fn size(&self) -> usize {
-        let guard = self.queue.lock().unwrap();
-        guard.len()
+        let queue_guard = self.queue.lock().unwrap();
+        queue_guard.len()
     }
 
     /// Clears all items from the queue.
     pub fn clear(&self) {
-        let mut guard = self.queue.lock().unwrap();
-        guard.clear();
+        let mut queue_guard = self.queue.lock().unwrap();
+        queue_guard.clear();
     }
 
     /// Returns a reference to the front item of the queue.
@@ -72,8 +72,8 @@ impl<T> SyncQueue<T> {
     where
         T: Clone,
     {
-        let guard = self.queue.lock().unwrap();
-        guard.front().cloned()
+        let queue_guard = self.queue.lock().unwrap();
+        queue_guard.front().cloned()
     }
 
     /// Returns a reference to the back item of the queue.
@@ -81,8 +81,8 @@ impl<T> SyncQueue<T> {
     where
         T: Clone,
     {
-        let guard = self.queue.lock().unwrap();
-        guard.back().cloned()
+        let queue_guard = self.queue.lock().unwrap();
+        queue_guard.back().cloned()
     }
 }
 
