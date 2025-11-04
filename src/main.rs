@@ -23,14 +23,14 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use publish_subscribe_rs::tools::async_observer;
-use publish_subscribe_rs::tools::histogram;
-use publish_subscribe_rs::tools::periodic_task;
-use publish_subscribe_rs::tools::sync_dictionary;
-use publish_subscribe_rs::tools::sync_object;
-use publish_subscribe_rs::tools::sync_observer;
-use publish_subscribe_rs::tools::sync_queue;
-use publish_subscribe_rs::tools::worker_task;
+use pubsub_rs::tools::async_observer;
+use pubsub_rs::tools::histogram;
+use pubsub_rs::tools::periodic_task;
+use pubsub_rs::tools::sync_dictionary;
+use pubsub_rs::tools::sync_object;
+use pubsub_rs::tools::sync_observer;
+use pubsub_rs::tools::sync_queue;
+use pubsub_rs::tools::worker_task;
 
 type MyContext = String;
 

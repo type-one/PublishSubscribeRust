@@ -54,7 +54,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "publish_subscribe_rs"
+name = "pubsub_rs"
 version = "0.1.0"
 dependencies = [
  "multimap",
