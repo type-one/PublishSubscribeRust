@@ -209,22 +209,13 @@ impl Histogram<i32> {
 
         if std_dev > 0.0 && montecarlo_samples > 0 {
             let mut rng = rand::rng();
-            //let mut hits = 0;
 
             for _ in 0..montecarlo_samples {
                 let sample = rng.random_range(lower_bound..upper_bound);
                 let density = self.gaussian_density_function(sample, mean, std_dev);
-                //let max_density = self.gaussian_density_function(mean, mean, std_dev);
-                //let threshold = rng.random_range(0.0..max_density);
-
-                //if density >= threshold {
-                //    hits += 1;
-                //}
 
                 result += density;
             }
-
-            //result = (hits as f64) / (montecarlo_samples as f64);
 
             result = result * (upper_bound - lower_bound) / ((montecarlo_samples - 1) as f64);
         } // end if

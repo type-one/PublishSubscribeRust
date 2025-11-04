@@ -34,13 +34,29 @@ use publish_subscribe_rs::tools::worker_task;
 
 type MyContext = String;
 
+/// A sample periodic function to be used with the PeriodicTask.
 fn my_periodic_function(context: std::sync::Arc<MyContext>, task_name: &String) {
     println!(
         "Periodic task '{}' executed with context: {}",
         task_name, context
     );
 }
+/// A function generating an array of random i32 following a Gaussian Distribution with given mean and standard deviation.
+fn generate_gaussian_samples(mean: f64, std_dev: f64, count: usize) -> Vec<i32> {
+    let mut samples = Vec::with_capacity(count);
 
+    for _ in 0..count {
+        // Box-Muller transform using rand::random() to avoid the `gen` keyword conflict
+        let u1: f64 = rand::random();
+        let u2: f64 = rand::random();
+        let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+        let sample = (z0 * std_dev + mean).round() as i32;
+        samples.push(sample);
+    }
+
+    samples
+}
+/// Main entry
 fn main() {
     // Test sync queue
     let sync_queue = sync_queue::SyncQueue::<i32>::new();
@@ -88,6 +104,19 @@ fn main() {
         println!("No occurrences in histogram.");
     }
 
+    println!("clearing histogram and generating Gaussian samples (mean 50.0, std_dev 5.0)...");
+    hist.clear(); // Generate Gaussian samples and add them to the histogram
+    let samples = generate_gaussian_samples(50.0, 5.0, 100000);
+    for sample in samples {
+        hist.add(sample);
+    }
+
+    if let Some((top_value, count)) = hist.top_value_with_count() {
+        println!("Top occurrence: value = {}, count = {}", top_value, count);
+    } else {
+        println!("No occurrences in histogram.");
+    }
+
     let average = hist.average();
     println!("Average value: {}", average);
     println!("Total count: {}", hist.total_count());
@@ -96,7 +125,26 @@ fn main() {
     let std_dev = hist.standard_deviation(variance);
     println!("Standard deviation: {}", std_dev);
     println!("Median: {}", hist.median());
-    println!("Gaussian probability between 49 and 51: {}", hist.gaussian_probability_between(49.0, 51.0, average, std_dev, 10000));
+    println!(
+        "Gaussian probability between 45 and 55: {} should be around 68.27%",
+        hist.gaussian_probability_between(45.0, 55.0, average, std_dev, 10000)
+    );
+    println!(
+        "Gaussian probability between 40 and 45: {} should be around 13.59%",
+        hist.gaussian_probability_between(40.0, 45.0, average, std_dev, 10000)
+    );
+    println!(
+        "Gaussian probability between 60 and 65: {} should be around 2.28%",
+        hist.gaussian_probability_between(60.0, 65.0, average, std_dev, 10000)
+    );
+    println!(
+        "Gaussian probability between 40 and 60: {} should be around 95.45%",
+        hist.gaussian_probability_between(40.0, 60.0, average, std_dev, 10000)
+    );
+    println!(
+        "Gaussian probability between 35 and 65: {} should be around 99.73%",
+        hist.gaussian_probability_between(35.0, 65.0, average, std_dev, 10000)
+    );
 
     // Test histogram with String type
     let mut hist: histogram::Histogram<String> = histogram::Histogram::<String>::new();
