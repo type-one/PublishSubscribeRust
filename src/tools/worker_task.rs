@@ -23,7 +23,6 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use crate::tools::sync_object::SyncObject;
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::task_function::TaskFunction;
 
@@ -31,9 +30,8 @@ use crate::tools::task_function::TaskFunction;
 pub struct WorkerTask<ContextType: Send + Sync + 'static> {
     task_name: String,
     context: std::sync::Arc<ContextType>,
-    work_sync_object: std::sync::Arc<std::sync::Mutex<SyncObject>>,
+    work_sender: std::sync::mpsc::Sender<bool>,
     work_queue: std::sync::Arc<SyncQueue<std::sync::Arc<TaskFunction<ContextType>>>>,
-    stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
     task_handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -44,9 +42,8 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
         WorkerTask {
             task_name,
             context: context.clone(),
-            work_sync_object: std::sync::Arc::new(std::sync::Mutex::new(SyncObject::new(false))),
+            work_sender: std::sync::mpsc::channel().0, // dummy initialization
             work_queue: std::sync::Arc::new(SyncQueue::new()),
-            stop_task: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             task_handle: None,
         }
     }
@@ -54,16 +51,17 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
     /// Starts the worker task.
     pub fn start(&mut self) {
         let task_name = self.task_name.clone();
-        let work_sync_object = self.work_sync_object.clone();
         let work_queue = self.work_queue.clone();
-        let stop_task = self.stop_task.clone();
         let context = self.context.clone();
+
+        let (sender, receiver) = std::sync::mpsc::channel();
+        self.work_sender = sender;
 
         self.task_handle = Some(
             std::thread::Builder::new()
                 .name(task_name.clone())
                 .spawn(move || {
-                    Self::run_loop(work_sync_object, work_queue, stop_task, context, task_name);
+                    Self::run_loop(receiver, work_queue, context, task_name);
                 })
                 .expect("Failed to spawn worker task"),
         );
@@ -72,30 +70,30 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
     /// Delegates a task function to the worker task.
     pub fn delegate(&mut self, task_function: std::sync::Arc<TaskFunction<ContextType>>) {
         self.work_queue.enqueue(task_function);
-        // lock the SyncObject before signaling
-        self.work_sync_object.lock().unwrap().signal();
+
+        // Signal the worker task that there is work to do
+        self.work_sender
+            .send(true)
+            .expect("Failed to send work signal to worker task");
     }
 
     // The main loop of the worker task.
     fn run_loop(
-        work_sync_object: std::sync::Arc<std::sync::Mutex<SyncObject>>,
+        receiver: std::sync::mpsc::Receiver<bool>,
         work_queue: std::sync::Arc<SyncQueue<std::sync::Arc<TaskFunction<ContextType>>>>,
-        stop_task: std::sync::Arc<std::sync::atomic::AtomicBool>,
         context: std::sync::Arc<ContextType>,
         task_name: String,
     ) {
-        while !stop_task.load(std::sync::atomic::Ordering::Acquire) {
-            // Wait for work
-            {
-                //println!("Worker task '{}' waiting for signal...", task_name);
-                //work_sync_object.lock().unwrap().wait_for_signal(); //
-                work_sync_object
-                    .lock()
-                    .unwrap()
-                    .wait_for_signal_timeout(1000);
+
+        // Wait for work
+        loop {
+            let received_message = receiver.recv().unwrap();
+
+            if !received_message {
+                break; // Exit the loop if a stop signal is received
             }
+
             // Process all tasks in the queue
-            //println!("Worker task '{}' woke up to process tasks.", task_name);
             while let Some(task_function) = work_queue.dequeue()
             {
                 (task_function)(context.clone(), &task_name);
@@ -108,26 +106,11 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
 impl<ContextType: Send + Sync + 'static> Drop for WorkerTask<ContextType> {
     fn drop(&mut self) {
         // Stop the worker task
-        //println!("Stopping worker task: {}", self.task_name);
-        self.stop_task
-            .store(true, std::sync::atomic::Ordering::Release);
-
-        //println!("Signaling worker task to wake up: {}", self.task_name);
-        // Wake up the worker task
-        self.work_sync_object.lock().unwrap().signal_all();
-
-        //self.delegate(std::sync::Arc::new(|_, _| {
-        // no-op task to ensure the worker wakes up
-        //println!("No-op task executed to wake up the worker.");
-        //}));
-
-        std::thread::yield_now();
+        self.work_sender.send(false).unwrap();
 
         // wait for the worker task to finish
-        //println!("Waiting for worker task to finish: {}", self.task_name);
         if let Some(handle) = self.task_handle.take() {
             handle.join().unwrap();
         }
-        //println!("Worker task stopped: {}", self.task_name);
     }
 }
