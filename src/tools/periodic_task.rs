@@ -112,9 +112,7 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
                 let remaining_time = (deadline - current_time).as_micros();
                 // wait 90% of the remaining time to avoid busy waiting
                 // sleep until we are close to the deadline
-                std::thread::sleep(Duration::from_micros(
-                    (remaining_time * 90 / 100) as u64,
-                ));
+                std::thread::sleep(Duration::from_micros((remaining_time * 90 / 100) as u64));
             } // end if wait period needed
         } // periodic task loop
     }
@@ -124,8 +122,7 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
 impl<ContextType> Drop for PeriodicTask<ContextType> {
     fn drop(&mut self) {
         // signal the task to stop
-        self.stop_task
-            .store(true, Ordering::Release);
+        self.stop_task.store(true, Ordering::Release);
 
         // wait for the task to finish
         if let Some(handle) = self.task_handle.take() {

@@ -43,9 +43,7 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
     /// Creates a new AsyncObserver.
     pub fn new() -> Self {
         AsyncObserver {
-            wakeable_sync_object: Arc::new(Mutex::new(SyncObject::new(
-                false,
-            ))),
+            wakeable_sync_object: Arc::new(Mutex::new(SyncObject::new(false))),
             event_queue: Arc::new(SyncQueue::new()),
         }
     }

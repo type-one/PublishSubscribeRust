@@ -23,10 +23,10 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use rand::Rng;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::Add;
-use rand::Rng;
 /// A simple histogram implementation to track occurrences of values.
 pub struct Histogram<T> {
     occurences: HashMap<T, usize>,

@@ -207,49 +207,40 @@ fn main() {
     // Test worker task
     {
         let context = Arc::new("My worker task context".to_string());
-        let mut worker_task =
-            WorkerTask::new("MyWorkerTask".to_string(), context.clone());
+        let mut worker_task = WorkerTask::new("MyWorkerTask".to_string(), context.clone());
 
         worker_task.start();
 
-        worker_task.delegate(Arc::new(
-            |ctx: Arc<MyContext>, task_name: &String| {
-                println!("Worker task '{}' executed with context: {}", task_name, ctx);
-            },
-        ));
+        worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!("Worker task '{}' executed with context: {}", task_name, ctx);
+        }));
 
-        worker_task.delegate(Arc::new(
-            |ctx: Arc<MyContext>, task_name: &String| {
-                println!(
-                    "Another worker task '{}' executed with context: {}",
-                    task_name, ctx
-                );
-            },
-        ));
+        worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!(
+                "Another worker task '{}' executed with context: {}",
+                task_name, ctx
+            );
+        }));
 
         // Let the worker task run for a few seconds
         std::thread::sleep(Duration::from_secs(2));
 
-        worker_task.delegate(Arc::new(
-            |ctx: Arc<MyContext>, task_name: &String| {
-                println!(
-                    "Yet another worker task '{}' executed with context: {}",
-                    task_name, ctx
-                );
-            },
-        ));
+        worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!(
+                "Yet another worker task '{}' executed with context: {}",
+                task_name, ctx
+            );
+        }));
 
         // Let the worker task run for a few seconds
-        std::thread::sleep(Duration::from_secs(1));        
-        
-        worker_task.delegate(Arc::new(
-            |ctx: Arc<MyContext>, task_name: &String| {
-                println!(
-                    "And a last one '{}' executed with context: {}",
-                    task_name, ctx
-                );
-            },
-        ));        
+        std::thread::sleep(Duration::from_secs(1));
+
+        worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
+            println!(
+                "And a last one '{}' executed with context: {}",
+                task_name, ctx
+            );
+        }));
 
         // Let the worker task run for a few seconds
         std::thread::sleep(Duration::from_secs(2));
@@ -308,26 +299,24 @@ fn main() {
                 // Create the periodic task that will process events
                 let task = PeriodicTask::new(
                     "AsyncObserverTask".to_string(),
-                    Arc::new(
-                        move |_ctx: Arc<MyContext>, _task_name: &String| {
-                            // Process events directly using the captured observer clone
-                            observer_clone.wait_for_events(500);
+                    Arc::new(move |_ctx: Arc<MyContext>, _task_name: &String| {
+                        // Process events directly using the captured observer clone
+                        observer_clone.wait_for_events(500);
 
-                            // Process all available events
-                            if observer_clone.has_events() {
-                                // Pop and process all events
-                                let to_process = observer_clone.pop_all_events();
+                        // Process all available events
+                        if observer_clone.has_events() {
+                            // Pop and process all events
+                            let to_process = observer_clone.pop_all_events();
 
-                                // Process each event
-                                for (topic, event, origin) in to_process {
-                                    println!(
-                                        "Async Observer processed - Topic: {}, Event: {}, Origin: {}",
-                                        topic, event, origin
-                                    );
-                                }
+                            // Process each event
+                            for (topic, event, origin) in to_process {
+                                println!(
+                                    "Async Observer processed - Topic: {}, Event: {}, Origin: {}",
+                                    topic, event, origin
+                                );
                             }
-                        },
-                    ),
+                        }
+                    }),
                     1000,
                     Arc::new("".to_string()),
                 );
@@ -353,9 +342,7 @@ fn main() {
         let mut async_observer = Arc::new(MyAsyncObserver::new());
 
         // Start the internal periodic task
-        Arc::get_mut(&mut async_observer)
-            .unwrap()
-            .start();
+        Arc::get_mut(&mut async_observer).unwrap().start();
 
         subject.subscribe("TestTopic".to_string(), async_observer.clone());
 

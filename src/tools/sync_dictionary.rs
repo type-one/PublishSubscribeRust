@@ -24,8 +24,8 @@
 //-----------------------------------------------------------------------------//
 
 use std::collections::{BTreeMap, HashMap};
-use std::hash::Hash;
 use std::fmt::Debug;
+use std::hash::Hash;
 use std::sync::Mutex;
 /// Thread-safe dictionary implementation using standard Rust constructs.
 pub struct SyncDictionary<K, T> {
@@ -36,7 +36,7 @@ pub struct SyncDictionary<K, T> {
 impl<K, T> SyncDictionary<K, T>
 where
     K: Ord + Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
-    T: Clone + Debug,       // Ensure T can be cloned and printed
+    T: Clone + Debug,      // Ensure T can be cloned and printed
 {
     /// Creates a new SyncDictionary.
     pub fn new() -> Self {
@@ -117,7 +117,7 @@ where
 impl<K, T> Default for SyncDictionary<K, T>
 where
     K: Ord + Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
-    T: Clone + Debug,       // Ensure T can be cloned and printed
+    T: Clone + Debug,      // Ensure T can be cloned and printed
 {
     fn default() -> Self {
         Self::new()

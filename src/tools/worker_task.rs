@@ -55,7 +55,7 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
         let context = self.context.clone();
 
         // https://kundan926.medium.com/exploring-the-basics-of-rusts-thread-concept-d8922d12e2f0
-        
+
         let (sender, receiver) = std::sync::mpsc::channel();
         self.work_sender = sender;
 
@@ -86,7 +86,6 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
         context: std::sync::Arc<ContextType>,
         task_name: String,
     ) {
-
         // Wait for work
         loop {
             let received_message = receiver.recv().unwrap();
@@ -96,8 +95,7 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
             }
 
             // Process all tasks in the queue
-            while let Some(task_function) = work_queue.dequeue()
-            {
+            while let Some(task_function) = work_queue.dequeue() {
                 (task_function)(context.clone(), &task_name);
             }
         } // run loop

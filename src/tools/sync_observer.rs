@@ -23,10 +23,10 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use multimap::MultiMap;
 use std::cmp::Eq;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
-use multimap::MultiMap;
 
 // https://juanchopanzacpp.wordpress.com/2013/02/24/simple-observer-pattern-implementation-c11/
 // http://www.codeproject.com/Articles/328365/Understanding-and-Implementing-Observer-Pattern
@@ -37,10 +37,7 @@ pub trait SyncObserver<Topic, Evt> {
 }
 
 /// Type alias for a synchronous subscription.
-pub type SyncSubscription<Topic, Evt> = (
-    Topic,
-    Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
-);
+pub type SyncSubscription<Topic, Evt> = (Topic, Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>);
 
 /// Type alias for a loose-coupled handler function.
 pub type LooseCoupledHandler<Topic, Evt> = dyn Fn(&Topic, &Evt, &str) + Send + Sync;
@@ -84,12 +81,11 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
         let _lock = self.mutex.lock().unwrap();
         if let Some(observers) = self.subscribers.get_vec(topic) {
             // Keep only those observers that are NOT the one to remove.
-            let retained: Vec<Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>> =
-                observers
-                    .iter()
-                    .filter(|o| !Arc::ptr_eq(o, observer))
-                    .cloned()
-                    .collect();
+            let retained: Vec<Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>> = observers
+                .iter()
+                .filter(|o| !Arc::ptr_eq(o, observer))
+                .cloned()
+                .collect();
 
             // Remove all current entries for the topic and re-insert the retained ones.
             self.subscribers.remove(topic);
