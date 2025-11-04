@@ -54,6 +54,8 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
         let work_queue = self.work_queue.clone();
         let context = self.context.clone();
 
+        // https://kundan926.medium.com/exploring-the-basics-of-rusts-thread-concept-d8922d12e2f0
+        
         let (sender, receiver) = std::sync::mpsc::channel();
         self.work_sender = sender;
 
