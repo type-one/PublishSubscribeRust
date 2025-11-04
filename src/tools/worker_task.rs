@@ -97,7 +97,6 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
             // Process all tasks in the queue
             //println!("Worker task '{}' woke up to process tasks.", task_name);
             while let Some(task_function) = work_queue.dequeue()
-                && !stop_task.load(std::sync::atomic::Ordering::Acquire)
             {
                 (task_function)(context.clone(), &task_name);
             }

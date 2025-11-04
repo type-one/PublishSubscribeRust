@@ -226,22 +226,19 @@ fn main() {
 
         // Let the worker task run for a few seconds
         std::thread::sleep(std::time::Duration::from_secs(2));
+        
+        worker_task.delegate(std::sync::Arc::new(
+            |ctx: std::sync::Arc<MyContext>, task_name: &String| {
+                println!(
+                    "Yet another worker task '{}' executed with context: {}",
+                    task_name, ctx
+                );
+            },
+        ));
 
-        /*
-                worker_task.delegate(std::sync::Arc::new(
-                    |ctx: std::sync::Arc<MyContext>, task_name: &String| {
-                        println!(
-                            "Yet another worker task '{}' executed with context: {}",
-                            task_name, ctx
-                        );
-                    },
-                ));
-
-                // Let the worker task run for a few seconds
-                std::thread::sleep(std::time::Duration::from_secs(1));
-        */
-
-        /*
+        // Let the worker task run for a few seconds
+        std::thread::sleep(std::time::Duration::from_secs(1));        
+        
         worker_task.delegate(std::sync::Arc::new(
             |ctx: std::sync::Arc<MyContext>, task_name: &String| {
                 println!(
@@ -249,11 +246,10 @@ fn main() {
                     task_name, ctx
                 );
             },
-        ));
-        */
+        ));        
 
         // Let the worker task run for a few seconds
-        //std::thread::sleep(std::time::Duration::from_secs(2));
+        std::thread::sleep(std::time::Duration::from_secs(2));
     }
 
     // Test sync observer and subject
