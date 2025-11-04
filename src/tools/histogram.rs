@@ -108,9 +108,12 @@ where
     }
 }
 
-/// Specialized implementation of statistical methods for Histogram with i32 values.
-impl Histogram<i32> {
-    /// Calculates the average of the sampled i32 values.
+/// Specialized implementation of statistical methods for Histogram with primitive integer values (any size, signed or not).
+impl<T> Histogram<T>
+where
+    T: std::hash::Hash + Eq + Clone + Ord + std::ops::Add + Copy + Into<f64>, // Ensure T is a primitive integer AND can be used as a key in HashMap and cloned
+{
+    /// Calculates the average of the sampled integer values.
     pub fn average(&self) -> f64 {
         if self.total_count == 0 {
             return 0.0;
@@ -119,7 +122,7 @@ impl Histogram<i32> {
         let sum: f64 = self
             .occurences
             .iter()
-            .map(|(value, count)| (*value as f64) * (*count as f64))
+            .map(|(value, count)| (*value).into() * (*count as f64))
             .sum();
 
         sum / (self.total_count as f64)
@@ -136,7 +139,7 @@ impl Histogram<i32> {
             .iter()
             .map(|(value, count)| {
                 // https://www.calculatorsoup.com/calculators/statistics/standard-deviation-calculator.php
-                let diff = (*value as f64) - average;
+                let diff = (*value).into() - average;
                 diff * diff * (*count as f64)
             })
             .sum();
@@ -155,7 +158,7 @@ impl Histogram<i32> {
             return 0.0;
         }
 
-        let mut sorted_values: Vec<(&i32, &usize)> = self.occurences.iter().collect();
+        let mut sorted_values: Vec<(&T, &usize)> = self.occurences.iter().collect();
         sorted_values.sort_by_key(|&(value, _)| *value);
 
         // https://www.calculator.net/mean-median-mode-range-calculator.html
@@ -166,7 +169,7 @@ impl Histogram<i32> {
         for (value, count) in sorted_values {
             cumulative_count += *count;
             if cumulative_count > mid_index {
-                return *value as f64;
+                return (*value).into();
             }
         }
 

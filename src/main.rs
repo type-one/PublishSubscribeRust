@@ -92,7 +92,7 @@ fn main() {
     }
 
     // Test histogram
-    let mut hist: histogram::Histogram<i32> = histogram::Histogram::<i32>::new();
+    let mut hist = histogram::Histogram::<u64>::new();
     hist.add(42);
     hist.add(42);
     hist.add(7);
@@ -104,8 +104,13 @@ fn main() {
         println!("No occurrences in histogram.");
     }
 
-    println!("clearing histogram and generating Gaussian samples (mean 50.0, std_dev 5.0)...");
-    hist.clear(); // Generate Gaussian samples and add them to the histogram
+    hist.clear();
+
+    println!("Generating Gaussian samples (mean 50.0, std_dev 5.0)...");
+
+    let mut hist = histogram::Histogram::<i32>::new();
+
+    // Generate Gaussian samples and add them to the histogram
     let samples = generate_gaussian_samples(50.0, 5.0, 100000);
     for sample in samples {
         hist.add(sample);
