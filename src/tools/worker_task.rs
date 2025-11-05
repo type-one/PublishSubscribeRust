@@ -23,67 +23,40 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::sync::Arc;
+use std::sync::mpsc::{Receiver, Sender};
+
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::task_function::TaskFunction;
+use crate::tools::worker_trait::WorkerTrait;
 
 /// Struct representing a worker task.
 pub struct WorkerTask<ContextType: Send + Sync + 'static> {
     task_name: String,
-    context: std::sync::Arc<ContextType>,
-    work_sender: std::sync::mpsc::Sender<bool>,
-    work_queue: std::sync::Arc<SyncQueue<std::sync::Arc<TaskFunction<ContextType>>>>,
+    context: Arc<ContextType>,
+    work_sender: Sender<bool>,
+    work_queue: Arc<SyncQueue<Arc<TaskFunction<ContextType>>>>,
     task_handle: Option<std::thread::JoinHandle<()>>,
 }
 
 /// Implementation of the WorkerTask methods.
 impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
     /// Creates a new WorkerTask.
-    pub fn new(task_name: String, context: std::sync::Arc<ContextType>) -> Self {
+    pub fn new(task_name: String, context: Arc<ContextType>) -> Self {
         WorkerTask {
             task_name,
             context: context.clone(),
             work_sender: std::sync::mpsc::channel().0, // dummy initialization
-            work_queue: std::sync::Arc::new(SyncQueue::new()),
+            work_queue: Arc::new(SyncQueue::new()),
             task_handle: None,
         }
     }
 
-    /// Starts the worker task.
-    pub fn start(&mut self) {
-        let task_name = self.task_name.clone();
-        let work_queue = self.work_queue.clone();
-        let context = self.context.clone();
-
-        // https://kundan926.medium.com/exploring-the-basics-of-rusts-thread-concept-d8922d12e2f0
-
-        let (sender, receiver) = std::sync::mpsc::channel();
-        self.work_sender = sender;
-
-        self.task_handle = Some(
-            std::thread::Builder::new()
-                .name(task_name.clone())
-                .spawn(move || {
-                    Self::run_loop(receiver, work_queue, context, task_name);
-                })
-                .expect("Failed to spawn worker task"),
-        );
-    }
-
-    /// Delegates a task function to the worker task.
-    pub fn delegate(&mut self, task_function: std::sync::Arc<TaskFunction<ContextType>>) {
-        self.work_queue.enqueue(task_function);
-
-        // Signal the worker task that there is work to do
-        self.work_sender
-            .send(true)
-            .expect("Failed to send work signal to worker task");
-    }
-
     // The main loop of the worker task.
     fn run_loop(
-        receiver: std::sync::mpsc::Receiver<bool>,
-        work_queue: std::sync::Arc<SyncQueue<std::sync::Arc<TaskFunction<ContextType>>>>,
-        context: std::sync::Arc<ContextType>,
+        receiver: Receiver<bool>,
+        work_queue: Arc<SyncQueue<Arc<TaskFunction<ContextType>>>>,
+        context: Arc<ContextType>,
         task_name: String,
     ) {
         // Wait for work
@@ -112,5 +85,39 @@ impl<ContextType: Send + Sync + 'static> Drop for WorkerTask<ContextType> {
         if let Some(handle) = self.task_handle.take() {
             handle.join().unwrap();
         }
+    }
+}
+
+/// Implementation of the WorkerTrait for WorkerTask.
+impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerTask<ContextType> {
+    /// Starts the worker task.
+    fn start(&mut self) {
+        let task_name = self.task_name.clone();
+        let work_queue = self.work_queue.clone();
+        let context = self.context.clone();
+
+        // https://kundan926.medium.com/exploring-the-basics-of-rusts-thread-concept-d8922d12e2f0
+
+        let (sender, receiver) = std::sync::mpsc::channel();
+        self.work_sender = sender;
+
+        self.task_handle = Some(
+            std::thread::Builder::new()
+                .name(task_name.clone())
+                .spawn(move || {
+                    Self::run_loop(receiver, work_queue, context, task_name);
+                })
+                .expect("Failed to spawn worker task"),
+        );
+    }
+
+    /// Delegates a task function to the worker task.
+    fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>) {
+        self.work_queue.enqueue(task_function);
+
+        // Signal the worker task that there is work to do
+        self.work_sender
+            .send(true)
+            .expect("Failed to send work signal to worker task");
     }
 }

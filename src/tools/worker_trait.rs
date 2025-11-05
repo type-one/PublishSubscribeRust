@@ -23,16 +23,11 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-pub mod tools {
-    pub mod async_observer;
-    pub mod histogram;
-    pub mod periodic_task;
-    pub mod sync_dictionary;
-    pub mod sync_object;
-    pub mod sync_observer;
-    pub mod sync_queue;
-    pub mod task_function;
-    pub mod worker_pool;
-    pub mod worker_task;
-    pub mod worker_trait;
+use std::sync::Arc;
+
+use crate::tools::task_function::TaskFunction;
+
+pub trait WorkerTrait<ContextType: Send + Sync + 'static> {
+    fn start(&mut self);
+    fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>);
 }

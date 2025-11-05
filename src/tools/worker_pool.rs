@@ -23,10 +23,14 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::sync::Arc;
+
 use crate::tools::task_function::TaskFunction;
+use crate::tools::worker_trait::WorkerTrait;
+
 struct Job<ContextType: Send + Sync + 'static> {
-    context: std::sync::Arc<ContextType>,
-    task_function: std::sync::Arc<TaskFunction<ContextType>>,
+    context: Arc<ContextType>,
+    task_function: Arc<TaskFunction<ContextType>>,
 }
 
 impl<ContextType: Send + Sync + 'static> Job<ContextType> {
@@ -36,19 +40,19 @@ impl<ContextType: Send + Sync + 'static> Job<ContextType> {
 }
 /// Struct representing a worker pool.
 pub struct WorkerPool<ContextType: Send + Sync + 'static> {
-    context: std::sync::Arc<ContextType>,
+    context: Arc<ContextType>,
 }
 
 /// Implementation of the WorkerPool methods.
 impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
     /// Creates a new WorkerPool.
-    pub fn new(context: std::sync::Arc<ContextType>) -> Self {
+    pub fn new(context: Arc<ContextType>) -> Self {
         WorkerPool { context }
     }
 
-    /// Spawns a new worker.
+    /// Spawns a new worker (using tokio's own reactor pool).
     #[tokio::main]
-    async fn spawn_worker(&self, task_function: std::sync::Arc<TaskFunction<ContextType>>) {
+    async fn spawn_worker(&self, task_function: Arc<TaskFunction<ContextType>>) {
         let job = Job {
             context: self.context.clone(),
             task_function: task_function.clone(),
@@ -56,21 +60,14 @@ impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
 
         // https://tokio.rs/tokio/tutorial/spawning
 
+        // one-way function, no need to await
         tokio::spawn(async move {
-            let task_name = std::thread::current().name().unwrap_or("Worker").to_string();
+            let task_name = std::thread::current()
+                .name()
+                .unwrap_or("Worker")
+                .to_string();
             job.process(&task_name);
         });
-    }
-
-    /// Starts the worker pool.
-    pub fn start(&mut self) {
-        // Start the worker pool (e.g., by spawning a certain number of workers)
-    }
-
-    /// Delegates a task function to the worker pool.
-    pub fn delegate(&mut self, task_function: std::sync::Arc<TaskFunction<ContextType>>) {
-        // Enqueue the task function for processing by the worker pool
-        self.spawn_worker(task_function);
     }
 }
 
@@ -78,5 +75,20 @@ impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
 impl<ContextType: Send + Sync + 'static> Drop for WorkerPool<ContextType> {
     fn drop(&mut self) {
         // Clean up resources when the WorkerPool is dropped
+    }
+}
+
+/// Implementation of the WorkerTrait for WorkerPool.
+impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerPool<ContextType> {
+    /// Starts the worker pool.
+    fn start(&mut self) {
+        // Start the worker pool (e.g., by spawning a certain number of workers)
+        // default implementation does nothing as tokio spawns workers on demand
+    }
+
+    /// Delegates a task function to the worker pool.
+    fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>) {
+        // Enqueue the task function for processing by the worker pool
+        self.spawn_worker(task_function);
     }
 }

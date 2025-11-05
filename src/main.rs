@@ -35,6 +35,7 @@ use pubsub_rs::tools::sync_observer::{SyncObserver, SyncSubject};
 use pubsub_rs::tools::sync_queue::SyncQueue;
 use pubsub_rs::tools::worker_pool::WorkerPool;
 use pubsub_rs::tools::worker_task::WorkerTask;
+use pubsub_rs::tools::worker_trait::WorkerTrait;
 
 type MyContext = String;
 
@@ -255,7 +256,10 @@ fn main() {
         workers_pool.start();
 
         workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
-            println!("Worker pool task '{}' executed with context: {}", task_name, ctx);
+            println!(
+                "Worker pool task '{}' executed with context: {}",
+                task_name, ctx
+            );
         }));
 
         workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
