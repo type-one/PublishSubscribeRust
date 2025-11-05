@@ -91,7 +91,8 @@ fn generate_gaussian_samples(mean: f64, std_dev: f64, count: usize) -> Vec<i32> 
 
     samples
 }
-/// Main entry
+
+/// Main entry point for testing the synchronization tools.
 fn main() {
     // Test sync queue
     let sync_queue = SyncQueue::<i32>::new();
@@ -236,7 +237,7 @@ fn main() {
     {
         const RING_BUFFER_POW2N: usize = 4; // 16 elements
         let ring_buffer = Arc::new(Mutex::new(
-            LockFreeRingBuffer::<i32, RING_BUFFER_POW2N>::new(),
+            LockFreeRingBuffer::<f64, RING_BUFFER_POW2N>::new(),
         ));
 
         // Spawn a producer thread
@@ -245,7 +246,7 @@ fn main() {
             move || {
                 for i in 0..20 {
                     loop {
-                        if ring_buffer.lock().unwrap().enqueue(i).is_ok() {
+                        if ring_buffer.lock().unwrap().enqueue(i as f64).is_ok() {
                             println!("LockFreeRingBuffer Enqueued: {}", i);
                             break;
                         } else {
