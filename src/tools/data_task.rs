@@ -41,7 +41,7 @@ pub struct DataTask<ContextType: Send + Sync + 'static, DataType: Send + Sync + 
     task_name: String,
     context: Arc<ContextType>,
     data_sender: Sender<bool>,
-    data_queue: Arc<SyncQueue<Arc<DataType>>>,
+    data_queue: Arc<SyncQueue<DataType>>,
     data_processing_function: Arc<DataTaskFunction<ContextType, DataType>>,
     task_handle: Option<std::thread::JoinHandle<()>>,
 }
@@ -69,7 +69,7 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
     // The main loop of the data task.
     fn run_loop(
         receiver: Receiver<bool>,
-        data_queue: Arc<SyncQueue<Arc<DataType>>>,
+        data_queue: Arc<SyncQueue<DataType>>,
         context: Arc<ContextType>,
         task_name: String,
         data_processing_function: Arc<DataTaskFunction<ContextType, DataType>>,
@@ -90,7 +90,7 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
     }
 
     /// Submits data to the data task.
-    pub fn submit(&self, data: Arc<DataType>) {
+    pub fn submit(&self, data: DataType) {
         self.data_queue.enqueue(data);
         // Notify the data task that new data is available
         self.data_sender.send(true).unwrap();

@@ -356,19 +356,19 @@ fn main() {
         let mut data_task = DataTask::<MyContext, i32>::new(
             "MyDataTask".to_string(),
             context.clone(),
-            Arc::new(|ctx: Arc<MyContext>, task_name: &String, data: Arc<i32>| {
+            Arc::new(|ctx: Arc<MyContext>, task_name: &String, data: i32| {
                 println!(
                     "Data task '{}' executed with context: {}, data: {}",
-                    task_name, ctx.info, *data
+                    task_name, ctx.info, data
                 );
             }),
         );
 
         data_task.start();
 
-        data_task.submit(Arc::new(100));
-        data_task.submit(Arc::new(200));
-        data_task.submit(Arc::new(300));
+        data_task.submit(100);
+        data_task.submit(200);
+        data_task.submit(300);
 
         // Let the data task run for a few seconds
         std::thread::sleep(Duration::from_secs(2));

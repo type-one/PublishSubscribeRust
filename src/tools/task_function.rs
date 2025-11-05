@@ -36,4 +36,4 @@ pub type TaskFunction<ContextType> = dyn Fn(Arc<ContextType>, &String) + Send + 
 
 /// Define the type for the data task function used in data tasks.
 pub type DataTaskFunction<ContextType, DataType> =
-    dyn Fn(Arc<ContextType>, &String, Arc<DataType>) + Send + Sync + 'static;
+    dyn Fn(Arc<ContextType>, &String, DataType) + Send + Sync + 'static;
