@@ -24,6 +24,7 @@
 //-----------------------------------------------------------------------------//
 
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use pubsub_rs::tools::async_observer::AsyncObserver;
@@ -37,15 +38,41 @@ use pubsub_rs::tools::worker_pool::WorkerPool;
 use pubsub_rs::tools::worker_task::WorkerTask;
 use pubsub_rs::tools::worker_trait::WorkerTrait;
 
-type MyContext = String;
+/// An enum representing different types of values to be stored in the SyncDictionary.
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+enum ValueType {
+    Int(i32),
+    Float(f64),
+    Text(String),
+}
+/// A sample context struct to be used with the tasks.
+///
+/// The idea is to share several structures between tasks, such as environment variables or pub/sub interfaces
+struct MyContext {
+    info: String,
+    data: Arc<Mutex<Vec<i32>>>,
+    variables: Arc<Mutex<SyncDictionary<String, ValueType>>>,
+}
+
+impl Clone for MyContext {
+    fn clone(&self) -> Self {
+        MyContext {
+            info: self.info.clone(),
+            data: self.data.clone(),
+            variables: self.variables.clone(),
+        }
+    }
+}
 
 /// A sample periodic function to be used with the PeriodicTask.
 fn my_periodic_function(context: Arc<MyContext>, task_name: &String) {
     println!(
-        "Periodic task '{}' executed with context: {}",
-        task_name, context
+        "Periodic task '{}' executed with context: {:?}",
+        task_name, context.info
     );
 }
+
 /// A function generating an array of random i32 following a Gaussian Distribution with given mean and standard deviation.
 fn generate_gaussian_samples(mean: f64, std_dev: f64, count: usize) -> Vec<i32> {
     let mut samples = Vec::with_capacity(count);
@@ -171,7 +198,12 @@ fn main() {
 
     // Test periodic task with a function pointer
     {
-        let context = Arc::new("My periodic task context".to_string());
+        let context = Arc::new(MyContext {
+            info: "My periodic task context".to_string(),
+            data: Arc::new(Mutex::new(vec![1, 2, 3])),
+            variables: Arc::new(Mutex::new(SyncDictionary::new())),
+        });
+
         let mut task = PeriodicTask::new(
             "MyPeriodicTask".to_string(),
             Arc::new(my_periodic_function),
@@ -187,13 +219,18 @@ fn main() {
 
     // Test periodic task with a closure
     {
-        let context_closure = Arc::new("Closure context".to_string());
+        let context_closure = Arc::new(MyContext {
+            info: "Closure periodic task context".to_string(),
+            data: Arc::new(Mutex::new(vec![4, 5, 6])),
+            variables: Arc::new(Mutex::new(SyncDictionary::new())),
+        });
+
         let mut task_closure = PeriodicTask::new(
             "ClosurePeriodicTask".to_string(),
             Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
                 println!(
                     "Periodic task '{}' executed with context: {}",
-                    task_name, ctx
+                    task_name, ctx.info
                 );
             }),
             1500,
@@ -208,19 +245,27 @@ fn main() {
 
     // Test worker task
     {
-        let context = Arc::new("My worker task context".to_string());
+        let context = Arc::new(MyContext {
+            info: "My worker task context".to_string(),
+            data: Arc::new(Mutex::new(vec![7, 8, 9])),
+            variables: Arc::new(Mutex::new(SyncDictionary::new())),
+        });
+
         let mut worker_task = WorkerTask::new("MyWorkerTask".to_string(), context.clone());
 
         worker_task.start();
 
         worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
-            println!("Worker task '{}' executed with context: {}", task_name, ctx);
+            println!(
+                "Worker task '{}' executed with context: {}",
+                task_name, ctx.info
+            );
         }));
 
         worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "Another worker task '{}' executed with context: {}",
-                task_name, ctx
+                task_name, ctx.info
             );
         }));
 
@@ -230,7 +275,7 @@ fn main() {
         worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "Yet another worker task '{}' executed with context: {}",
-                task_name, ctx
+                task_name, ctx.info
             );
         }));
 
@@ -240,7 +285,7 @@ fn main() {
         worker_task.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "And a last one '{}' executed with context: {}",
-                task_name, ctx
+                task_name, ctx.info
             );
         }));
 
@@ -250,7 +295,12 @@ fn main() {
 
     // Test workers pool
     {
-        let context = Arc::new("My worker pool context".to_string());
+        let context = Arc::new(MyContext {
+            info: "My worker pool context".to_string(),
+            data: Arc::new(Mutex::new(vec![10, 11, 12])),
+            variables: Arc::new(Mutex::new(SyncDictionary::new())),
+        });
+
         let mut workers_pool = WorkerPool::new(context.clone());
 
         workers_pool.start();
@@ -258,14 +308,14 @@ fn main() {
         workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "Worker pool task '{}' executed with context: {}",
-                task_name, ctx
+                task_name, ctx.info
             );
         }));
 
         workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "Another worker pool task '{}' executed with context: {}",
-                task_name, ctx
+                task_name, ctx.info
             );
         }));
 
@@ -275,7 +325,7 @@ fn main() {
         workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "Yet another worker pool task '{}' executed with context: {}",
-                task_name, ctx
+                task_name, ctx.info
             );
         }));
 
@@ -285,7 +335,7 @@ fn main() {
         workers_pool.delegate(Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
                 "And a last one '{}' executed with context: {}",
-                task_name, ctx
+                task_name, ctx.info
             );
         }));
 
@@ -331,7 +381,7 @@ fn main() {
         // Define a struct that implements SyncObserver and contains an AsyncObserver
         struct MyAsyncObserver {
             observer: Arc<AsyncObserver<String, String>>,
-            task: PeriodicTask<String>,
+            task: PeriodicTask<MyContext>,
         }
 
         // Implement methods for MyAsyncObserver
@@ -365,7 +415,11 @@ fn main() {
                         }
                     }),
                     1000,
-                    Arc::new("".to_string()),
+                    Arc::new(MyContext {
+                        info: "AsyncObserver periodic task context".to_string(),
+                        data: Arc::new(Mutex::new(vec![])),
+                        variables: Arc::new(Mutex::new(SyncDictionary::new())),
+                    }),
                 );
 
                 MyAsyncObserver { observer, task }

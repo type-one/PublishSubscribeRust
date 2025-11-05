@@ -28,6 +28,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::ops::Add;
 /// A simple histogram implementation to track occurrences of values.
+#[derive(Debug)]
 pub struct Histogram<T> {
     occurences: HashMap<T, usize>,
     total_count: usize,

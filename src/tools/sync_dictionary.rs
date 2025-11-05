@@ -28,6 +28,7 @@ use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Mutex;
 /// Thread-safe dictionary implementation using standard Rust constructs.
+#[derive(Debug)]
 pub struct SyncDictionary<K, T> {
     dictionary: Mutex<BTreeMap<K, T>>,
 }

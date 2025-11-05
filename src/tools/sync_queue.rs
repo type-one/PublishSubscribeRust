@@ -26,6 +26,7 @@
 use std::collections::VecDeque;
 use std::sync::Mutex;
 /// Thread-safe queue implementation using standard Rust constructs.
+#[derive(Debug)]
 pub struct SyncQueue<T> {
     queue: Mutex<VecDeque<T>>,
 }
