@@ -26,8 +26,10 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 /// Thread-safe and lock-free ring buffer implementation using standard Rust constructs.
+/// The capacity of the ring buffer is a power of 2 (2^N).
+/// T: The type of elements stored in the ring buffer. Must implement Default and Copy traits.
 #[derive(Debug)]
-pub struct LockFreeRingBuffer<T, const POW2N: usize> {
+pub struct LockFreeRingBuffer<T: Default + Copy, const POW2N: usize> {
     ring_buffer: Vec<T>,
     push_index: AtomicUsize,
     pop_index: AtomicUsize,
@@ -36,7 +38,7 @@ pub struct LockFreeRingBuffer<T, const POW2N: usize> {
 }
 
 /// Implementation of the LockFreeRingBuffer methods.
-impl<T, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
+impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
     const RING_BUFFER_SIZE: usize = 1 << POW2N;
     const RING_BUFFER_MASK: usize = Self::RING_BUFFER_SIZE - 1;
 
@@ -46,7 +48,7 @@ impl<T, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
 
         // Initialize the buffer with default values
         for _ in 0..Self::RING_BUFFER_SIZE {
-            tmp_buffer.push(unsafe { std::mem::MaybeUninit::uninit().assume_init() });
+            tmp_buffer.push(T::default());
         }
 
         LockFreeRingBuffer {
@@ -108,10 +110,7 @@ impl<T, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
 
         self.reading.store(true, Ordering::Release);
         let read_index = self.pop_index.fetch_add(1, Ordering::AcqRel);
-        let item = std::mem::replace(
-            &mut self.ring_buffer[read_index & Self::RING_BUFFER_MASK],
-            unsafe { std::mem::MaybeUninit::uninit().assume_init() },
-        );
+        let item = self.ring_buffer[read_index & Self::RING_BUFFER_MASK];
         self.reading.store(false, Ordering::Release);
 
         Some(item)
@@ -123,7 +122,7 @@ impl<T, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
 }
 
 /// Default implementation for LockFreeRingBuffer.
-impl<T, const POW2N: usize> Default for LockFreeRingBuffer<T, POW2N> {
+impl<T: Default + Copy, const POW2N: usize> Default for LockFreeRingBuffer<T, POW2N> {
     fn default() -> Self {
         Self::new()
     }
