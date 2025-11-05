@@ -26,11 +26,11 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::hash::Hash;
-use std::sync::Mutex;
+use std::sync::RwLock;
 /// Thread-safe dictionary implementation using standard Rust constructs.
 #[derive(Debug)]
 pub struct SyncDictionary<K, T> {
-    dictionary: Mutex<BTreeMap<K, T>>,
+    dictionary: RwLock<BTreeMap<K, T>>,
 }
 
 /// Implementation of the SyncDictionary methods.
@@ -42,49 +42,49 @@ where
     /// Creates a new SyncDictionary.
     pub fn new() -> Self {
         SyncDictionary {
-            dictionary: Mutex::new(BTreeMap::new()),
+            dictionary: RwLock::new(BTreeMap::new()),
         }
     }
 
     /// Inserts a key-value pair into the dictionary.
     pub fn insert(&self, key: K, value: T) {
-        let mut dict_guard = self.dictionary.lock().unwrap();
+        let mut dict_guard = self.dictionary.write().unwrap();
         dict_guard.insert(key, value);
     }
 
     /// Retrieves a value associated with the given key.
     pub fn get(&self, key: &K) -> Option<T> {
-        let dict_guard = self.dictionary.lock().unwrap();
+        let dict_guard = self.dictionary.read().unwrap();
         dict_guard.get(key).cloned()
     }
 
     /// Removes a key-value pair from the dictionary.
     pub fn remove(&self, key: &K) {
-        let mut dict_guard = self.dictionary.lock().unwrap();
+        let mut dict_guard = self.dictionary.write().unwrap();
         dict_guard.remove(key);
     }
 
     /// Checks if the dictionary contains a key.
     pub fn contains_key(&self, key: &K) -> bool {
-        let dict_guard = self.dictionary.lock().unwrap();
+        let dict_guard = self.dictionary.read().unwrap();
         dict_guard.contains_key(key)
     }
 
     /// Returns the number of key-value pairs in the dictionary.
     pub fn size(&self) -> usize {
-        let dict_guard = self.dictionary.lock().unwrap();
+        let dict_guard = self.dictionary.read().unwrap();
         dict_guard.len()
     }
 
     /// Clears all key-value pairs from the dictionary.
     pub fn clear(&self) {
-        let mut dict_guard = self.dictionary.lock().unwrap();
+        let mut dict_guard = self.dictionary.write().unwrap();
         dict_guard.clear();
     }
 
     /// Adds key-value pairs from a BTreeMap to the dictionary.
     pub fn add_btree_collection(&self, other: &BTreeMap<K, T>) {
-        let mut dict_guard = self.dictionary.lock().unwrap();
+        let mut dict_guard = self.dictionary.write().unwrap();
         for (key, value) in other.iter() {
             dict_guard.insert(key.clone(), value.clone());
         }
@@ -92,7 +92,7 @@ where
 
     /// Adds key-value pairs from a HashMap to the dictionary.
     pub fn add_hash_collection(&self, other: &HashMap<K, T>) {
-        let mut dict_guard = self.dictionary.lock().unwrap();
+        let mut dict_guard = self.dictionary.write().unwrap();
         for (key, value) in other.iter() {
             dict_guard.insert(key.clone(), value.clone());
         }
@@ -100,13 +100,13 @@ where
 
     /// Converts the dictionary to a BTreeMap.
     pub fn to_btree_collection(&self) -> BTreeMap<K, T> {
-        let dict_guard = self.dictionary.lock().unwrap();
+        let dict_guard = self.dictionary.read().unwrap();
         dict_guard.clone()
     }
 
     /// Converts the dictionary to a HashMap.
     pub fn to_hash_collection(&self) -> HashMap<K, T> {
-        let dict_guard = self.dictionary.lock().unwrap();
+        let dict_guard = self.dictionary.read().unwrap();
         dict_guard
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))

@@ -25,7 +25,6 @@
 
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::RwLock;
 use std::time::Duration;
 
 use pubsub_rs::tools::async_observer::AsyncObserver;
