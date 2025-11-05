@@ -25,5 +25,11 @@
 
 use std::sync::Arc;
 
+// ContextType must be Send + Sync + 'static to be safely shared across threads.
+// It means that ContextType can be transferred across thread boundaries (Send),
+// can be referenced from multiple threads simultaneously (Sync), and does not
+// contain any non-static references ('static - static lifetime - valid for the
+// entire duration of the program).
+
 /// Define the type for the task function used in tasks.
 pub type TaskFunction<ContextType> = dyn Fn(Arc<ContextType>, &String) + Send + Sync + 'static;

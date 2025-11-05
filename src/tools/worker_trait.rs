@@ -27,6 +27,13 @@ use std::sync::Arc;
 
 use crate::tools::task_function::TaskFunction;
 
+// ContextType must be Send + Sync + 'static to be safely shared across threads.
+// It means that ContextType can be transferred across thread boundaries (Send),
+// can be referenced from multiple threads simultaneously (Sync), and does not
+// contain any non-static references ('static - static lifetime - valid for the
+// entire duration of the program).
+
+/// Trait defining the behavior of a worker.
 pub trait WorkerTrait<ContextType: Send + Sync + 'static> {
     fn start(&mut self);
     fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>);

@@ -38,6 +38,12 @@ pub struct AsyncObserver<Topic, Evt> {
     event_queue: Arc<SyncQueue<EventEntry<Topic, Evt>>>,
 }
 
+// Topic and Event must be Send + Sync + 'static to be safely shared across threads.
+// It means that they can be transferred across thread boundaries (Send),
+// can be referenced from multiple threads simultaneously (Sync), and does not
+// contain any non-static references ('static - static lifetime - valid for the
+// entire duration of the program).
+
 /// Implementation of the AsyncObserver methods.
 impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Topic, Evt> {
     /// Creates a new AsyncObserver.
