@@ -24,11 +24,11 @@
 //-----------------------------------------------------------------------------//
 
 use std::collections::VecDeque;
-use std::sync::Mutex;
+use std::sync::RwLock;
 /// Thread-safe queue implementation using standard Rust constructs.
 #[derive(Debug)]
 pub struct SyncQueue<T> {
-    queue: Mutex<VecDeque<T>>,
+    queue: RwLock<VecDeque<T>>,
 }
 
 /// Implementation of the SyncQueue methods.
@@ -36,37 +36,37 @@ impl<T> SyncQueue<T> {
     /// Creates a new SyncQueue.
     pub fn new() -> Self {
         SyncQueue {
-            queue: Mutex::new(VecDeque::new()),
+            queue: RwLock::new(VecDeque::new()),
         }
     }
 
     /// Adds an item to the back of the queue.
     pub fn enqueue(&self, item: T) {
-        let mut queue_guard = self.queue.lock().unwrap();
+        let mut queue_guard = self.queue.write().unwrap();
         queue_guard.push_back(item);
     }
 
     /// Removes and returns an item from the front of the queue.
     pub fn dequeue(&self) -> Option<T> {
-        let mut queue_guard = self.queue.lock().unwrap();
+        let mut queue_guard = self.queue.write().unwrap();
         queue_guard.pop_front()
     }
 
     /// Checks if the queue is empty.
     pub fn is_empty(&self) -> bool {
-        let queue_guard = self.queue.lock().unwrap();
+        let queue_guard = self.queue.read().unwrap();
         queue_guard.is_empty()
     }
 
     /// Returns the size of the queue.
     pub fn size(&self) -> usize {
-        let queue_guard = self.queue.lock().unwrap();
+        let queue_guard = self.queue.read().unwrap();
         queue_guard.len()
     }
 
     /// Clears all items from the queue.
     pub fn clear(&self) {
-        let mut queue_guard = self.queue.lock().unwrap();
+        let mut queue_guard = self.queue.write().unwrap();
         queue_guard.clear();
     }
 
@@ -75,7 +75,7 @@ impl<T> SyncQueue<T> {
     where
         T: Clone,
     {
-        let queue_guard = self.queue.lock().unwrap();
+        let queue_guard = self.queue.read().unwrap();
         queue_guard.front().cloned()
     }
 
@@ -84,7 +84,7 @@ impl<T> SyncQueue<T> {
     where
         T: Clone,
     {
-        let queue_guard = self.queue.lock().unwrap();
+        let queue_guard = self.queue.read().unwrap();
         queue_guard.back().cloned()
     }
 }
