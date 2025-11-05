@@ -27,6 +27,7 @@ pub mod tools {
     pub mod async_observer;
     pub mod data_task;
     pub mod histogram;
+    pub mod lock_free_ring_buffer;
     pub mod periodic_task;
     pub mod sync_dictionary;
     pub mod sync_object;

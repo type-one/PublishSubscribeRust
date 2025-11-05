@@ -25,11 +25,13 @@
 
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::RwLock;
 use std::time::Duration;
 
 use pubsub_rs::tools::async_observer::AsyncObserver;
 use pubsub_rs::tools::data_task::DataTask;
 use pubsub_rs::tools::histogram::Histogram;
+use pubsub_rs::tools::lock_free_ring_buffer::LockFreeRingBuffer;
 use pubsub_rs::tools::periodic_task::PeriodicTask;
 use pubsub_rs::tools::sync_dictionary::SyncDictionary;
 use pubsub_rs::tools::sync_object::SyncObject;
@@ -196,6 +198,82 @@ fn main() {
         println!("Top occurrence: value = {}, count = {}", top_value, count);
     } else {
         println!("No occurrences in histogram.");
+    }
+
+    // Test sync queue with main and a child thread
+    {
+        let sync_queue = Arc::new(SyncQueue::<i32>::new());
+
+        // Spawn a producer thread
+        let producer_handle = std::thread::spawn({
+            let sync_queue = sync_queue.clone();
+            move || {
+                for i in 0..10 {
+                    sync_queue.enqueue(i);
+                    println!("SyncQueue Enqueued: {}", i);
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            }
+        });
+
+        // Consumer in the main thread
+        for _ in 0..10 {
+            let item = loop {
+                if let Some(value) = sync_queue.dequeue() {
+                    break value;
+                } else {
+                    // Queue is empty, retry
+                    std::thread::yield_now();
+                }
+            };
+            println!("SyncQueue Dequeued: {}", item);
+            std::thread::sleep(Duration::from_millis(150));
+        }
+
+        producer_handle.join().unwrap();
+    }
+
+    // Test lock-free ring buffer with main and a child thread
+    {
+        const RING_BUFFER_POW2N: usize = 4; // 16 elements
+        let ring_buffer = Arc::new(Mutex::new(
+            LockFreeRingBuffer::<i32, RING_BUFFER_POW2N>::new(),
+        ));
+
+        // Spawn a producer thread
+        let producer_handle = std::thread::spawn({
+            let ring_buffer = ring_buffer.clone();
+            move || {
+                for i in 0..20 {
+                    loop {
+                        if ring_buffer.lock().unwrap().enqueue(i).is_ok() {
+                            println!("LockFreeRingBuffer Enqueued: {}", i);
+                            break;
+                        } else {
+                            // Buffer is full, retry
+                            std::thread::yield_now();
+                        }
+                    }
+                    std::thread::sleep(Duration::from_millis(100));
+                }
+            }
+        });
+
+        // Consumer in the main thread
+        for _ in 0..20 {
+            loop {
+                if let Some(value) = ring_buffer.lock().unwrap().dequeue() {
+                    println!("LockFreeRingBuffer Dequeued: {}", value);
+                    break;
+                } else {
+                    // Buffer is empty, retry
+                    std::thread::yield_now();
+                }
+            }
+            std::thread::sleep(Duration::from_millis(150));
+        }
+
+        producer_handle.join().unwrap();
     }
 
     // Test periodic task with a function pointer

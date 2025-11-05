@@ -76,6 +76,7 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
             // active wait until the deadline is reached
             while !stop_task.load(Ordering::Acquire) && current_time < deadline {
                 current_time = Instant::now();
+                std::hint::spin_loop();
             }
 
             // exit if stop requested
