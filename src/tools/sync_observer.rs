@@ -26,7 +26,7 @@
 use multimap::MultiMap;
 use std::cmp::Eq;
 use std::hash::Hash;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 // https://juanchopanzacpp.wordpress.com/2013/02/24/simple-observer-pattern-implementation-c11/
 // http://www.codeproject.com/Articles/328365/Understanding-and-Implementing-Observer-Pattern
@@ -44,7 +44,7 @@ pub type LooseCoupledHandler<Topic, Evt> = dyn Fn(&Topic, &Evt, &str) + Send + S
 
 /// Struct representing a synchronous subject.
 pub struct SyncSubject<Topic, Evt> {
-    mutex: Mutex<()>,
+    rwlock: RwLock<()>,
     subscribers: MultiMap<Topic, Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>>,
     handlers: MultiMap<Topic, (Arc<LooseCoupledHandler<Topic, Evt>>, String)>,
     name: String,
@@ -55,7 +55,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     /// Creates a new SyncSubject.
     pub fn new(name: &str) -> Self {
         SyncSubject {
-            mutex: Mutex::new(()),
+            rwlock: RwLock::new(()),
             subscribers: MultiMap::new(),
             handlers: MultiMap::new(),
             name: name.to_string(),
@@ -68,7 +68,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
         topic: Topic,
         observer: Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
     ) {
-        let _lock = self.mutex.lock().unwrap();
+        let _lock = self.rwlock.write().unwrap();
         self.subscribers.insert(topic, observer);
     }
 
@@ -78,7 +78,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
         topic: &Topic,
         observer: &Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
     ) {
-        let _lock = self.mutex.lock().unwrap();
+        let _lock = self.rwlock.write().unwrap();
         if let Some(observers) = self.subscribers.get_vec(topic) {
             // Keep only those observers that are NOT the one to remove.
             let retained: Vec<Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>> = observers
@@ -102,14 +102,14 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
         handler: Arc<LooseCoupledHandler<Topic, Evt>>,
         handler_name: &str,
     ) {
-        let _lock = self.mutex.lock().unwrap();
+        let _lock = self.rwlock.write().unwrap();
         self.handlers
             .insert(topic, (handler, handler_name.to_string()));
     }
 
     /// Unsubscribes a loose-coupled handler from a topic by name.
     pub fn unsubscribe_handler(&mut self, topic: &Topic, handler_name: &str) {
-        let _lock = self.mutex.lock().unwrap();
+        let _lock = self.rwlock.write().unwrap();
         if let Some(handlers) = self.handlers.get_vec(topic) {
             // Keep only those handlers whose name does NOT match handler_name.
             let retained: Vec<(Arc<LooseCoupledHandler<Topic, Evt>>, String)> = handlers
@@ -128,7 +128,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
 
     /// Publishes an event to a topic with a specified origin.
     pub fn publish_named(&self, topic: &Topic, event: &Evt, origin: &str) {
-        let _lock = self.mutex.lock().unwrap();
+        let _lock = self.rwlock.read().unwrap();
         if let Some(observers) = self.subscribers.get_vec(topic) {
             for observer in observers {
                 observer.inform(topic, event, origin);
