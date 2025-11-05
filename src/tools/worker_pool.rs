@@ -26,6 +26,7 @@
 use std::sync::Arc;
 
 use crate::tools::task_function::TaskFunction;
+use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_trait::WorkerTrait;
 
 // ContextType must be Send + Sync + 'static to be safely shared across threads.
@@ -84,14 +85,17 @@ impl<ContextType: Send + Sync + 'static> Drop for WorkerPool<ContextType> {
     }
 }
 
-/// Implementation of the WorkerTrait for WorkerPool.
-impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerPool<ContextType> {
+/// Implementation of the TaskTrait for WorkerPool.
+impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerPool<ContextType> {
     /// Starts the worker pool.
     fn start(&mut self) {
         // Start the worker pool (e.g., by spawning a certain number of workers)
         // default implementation does nothing as tokio spawns workers on demand
     }
+}
 
+/// Implementation of the WorkerTrait for WorkerPool.
+impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerPool<ContextType> {
     /// Delegates a task function to the worker pool.
     fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>) {
         // Enqueue the task function for processing by the worker pool

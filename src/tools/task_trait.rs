@@ -23,17 +23,13 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-pub mod tools {
-    pub mod async_observer;
-    pub mod histogram;
-    pub mod periodic_task;
-    pub mod sync_dictionary;
-    pub mod sync_object;
-    pub mod sync_observer;
-    pub mod sync_queue;
-    pub mod task_function;
-    pub mod task_trait;
-    pub mod worker_pool;
-    pub mod worker_task;
-    pub mod worker_trait;
+// ContextType must be Send + Sync + 'static to be safely shared across threads.
+// It means that ContextType can be transferred across thread boundaries (Send),
+// can be referenced from multiple threads simultaneously (Sync), and does not
+// contain any non-static references ('static - static lifetime - valid for the
+// entire duration of the program).
+
+/// Trait defining the basic behavior of a task.
+pub trait TaskTrait<ContextType: Send + Sync + 'static> {
+    fn start(&mut self);
 }

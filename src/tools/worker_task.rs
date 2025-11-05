@@ -28,6 +28,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::task_function::TaskFunction;
+use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_trait::WorkerTrait;
 
 // ContextType must be Send + Sync + 'static to be safely shared across threads.
@@ -94,8 +95,8 @@ impl<ContextType: Send + Sync + 'static> Drop for WorkerTask<ContextType> {
     }
 }
 
-/// Implementation of the WorkerTrait for WorkerTask.
-impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerTask<ContextType> {
+/// Implementation of the TaskTrait for WorkerTask.
+impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerTask<ContextType> {
     /// Starts the worker task.
     fn start(&mut self) {
         let task_name = self.task_name.clone();
@@ -116,7 +117,10 @@ impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerTask
                 .expect("Failed to spawn worker task"),
         );
     }
+}
 
+/// Implementation of the WorkerTrait for WorkerTask.
+impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerTask<ContextType> {
     /// Delegates a task function to the worker task.
     fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>) {
         self.work_queue.enqueue(task_function);

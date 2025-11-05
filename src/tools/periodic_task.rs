@@ -28,6 +28,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::tools::task_function::TaskFunction;
+use crate::tools::task_trait::TaskTrait;
 /// Struct representing a periodic task.
 pub struct PeriodicTask<ContextType> {
     task_name: String,
@@ -55,24 +56,6 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
             stop_task: Arc::new(AtomicBool::new(false)),
             task_handle: None,
         }
-    }
-
-    /// Starts the periodic task.
-    pub fn start(&mut self) {
-        let task_function = self.task_function.clone();
-        let context = self.context.clone();
-        let task_name = self.task_name.clone();
-        let period_ms = self.period_ms;
-        let stop_task = self.stop_task.clone();
-
-        self.task_handle = Some(
-            std::thread::Builder::new()
-                .name(task_name.clone())
-                .spawn(move || {
-                    Self::run_loop(task_function, task_name, period_ms, context, stop_task);
-                })
-                .expect("Failed to spawn periodic task"),
-        );
     }
 
     // The main loop of the periodic task.
@@ -128,5 +111,26 @@ impl<ContextType> Drop for PeriodicTask<ContextType> {
         if let Some(handle) = self.task_handle.take() {
             handle.join().unwrap();
         }
+    }
+}
+
+/// Implementation of the TaskTrait for PeriodicTask.
+impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for PeriodicTask<ContextType> {
+    /// Starts the periodic task.
+    fn start(&mut self) {
+        let task_function = self.task_function.clone();
+        let context = self.context.clone();
+        let task_name = self.task_name.clone();
+        let period_ms = self.period_ms;
+        let stop_task = self.stop_task.clone();
+
+        self.task_handle = Some(
+            std::thread::Builder::new()
+                .name(task_name.clone())
+                .spawn(move || {
+                    Self::run_loop(task_function, task_name, period_ms, context, stop_task);
+                })
+                .expect("Failed to spawn periodic task"),
+        );
     }
 }

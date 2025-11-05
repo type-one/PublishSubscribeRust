@@ -34,6 +34,7 @@ use pubsub_rs::tools::sync_dictionary::SyncDictionary;
 use pubsub_rs::tools::sync_object::SyncObject;
 use pubsub_rs::tools::sync_observer::{SyncObserver, SyncSubject};
 use pubsub_rs::tools::sync_queue::SyncQueue;
+use pubsub_rs::tools::task_trait::TaskTrait;
 use pubsub_rs::tools::worker_pool::WorkerPool;
 use pubsub_rs::tools::worker_task::WorkerTask;
 use pubsub_rs::tools::worker_trait::WorkerTrait;
