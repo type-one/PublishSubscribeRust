@@ -23,13 +23,14 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use num::traits::PrimInt;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
 /// Thread-safe and lock-free ring buffer implementation using standard Rust constructs.
 /// The capacity of the ring buffer is a power of 2 (2^N).
-/// T: The type of elements stored in the ring buffer. Must implement Default and Copy traits.
+/// T: The type of elements stored in the ring buffer. Must be a primitive type that
+/// implements Default and Copy traits.
 #[derive(Debug)]
-pub struct LockFreeRingBuffer<T: Default + Copy, const POW2N: usize> {
+pub struct LockFreeRingBuffer<T: Default + Copy + PrimInt, const POW2N: usize> {
     ring_buffer: Vec<T>,
     push_index: AtomicUsize,
     pop_index: AtomicUsize,
@@ -38,7 +39,7 @@ pub struct LockFreeRingBuffer<T: Default + Copy, const POW2N: usize> {
 }
 
 /// Implementation of the LockFreeRingBuffer methods.
-impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
+impl<T: Default + Copy + PrimInt, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
     const RING_BUFFER_SIZE: usize = 1 << POW2N;
     const RING_BUFFER_MASK: usize = Self::RING_BUFFER_SIZE - 1;
 
@@ -122,7 +123,7 @@ impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
 }
 
 /// Default implementation for LockFreeRingBuffer.
-impl<T: Default + Copy, const POW2N: usize> Default for LockFreeRingBuffer<T, POW2N> {
+impl<T: Default + Copy + PrimInt, const POW2N: usize> Default for LockFreeRingBuffer<T, POW2N> {
     fn default() -> Self {
         Self::new()
     }
