@@ -28,6 +28,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use pubsub_rs::tools::async_observer::AsyncObserver;
+use pubsub_rs::tools::data_task::DataTask;
 use pubsub_rs::tools::histogram::Histogram;
 use pubsub_rs::tools::periodic_task::PeriodicTask;
 use pubsub_rs::tools::sync_dictionary::SyncDictionary;
@@ -341,6 +342,35 @@ fn main() {
         }));
 
         // Let the worker task run for a few seconds
+        std::thread::sleep(Duration::from_secs(2));
+    }
+
+    // Test data task
+    {
+        let context = Arc::new(MyContext {
+            info: "My data task context".to_string(),
+            data: Arc::new(Mutex::new(vec![13, 14, 15])),
+            variables: Arc::new(Mutex::new(SyncDictionary::new())),
+        });
+
+        let mut data_task = DataTask::<MyContext, i32>::new(
+            "MyDataTask".to_string(),
+            context.clone(),
+            Arc::new(|ctx: Arc<MyContext>, task_name: &String, data: Arc<i32>| {
+                println!(
+                    "Data task '{}' executed with context: {}, data: {}",
+                    task_name, ctx.info, *data
+                );
+            }),
+        );
+
+        data_task.start();
+
+        data_task.submit(Arc::new(100));
+        data_task.submit(Arc::new(200));
+        data_task.submit(Arc::new(300));
+
+        // Let the data task run for a few seconds
         std::thread::sleep(Duration::from_secs(2));
     }
 

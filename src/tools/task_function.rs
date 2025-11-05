@@ -33,3 +33,7 @@ use std::sync::Arc;
 
 /// Define the type for the task function used in tasks.
 pub type TaskFunction<ContextType> = dyn Fn(Arc<ContextType>, &String) + Send + Sync + 'static;
+
+/// Define the type for the data task function used in data tasks.
+pub type DataTaskFunction<ContextType, DataType> =
+    dyn Fn(Arc<ContextType>, &String, Arc<DataType>) + Send + Sync + 'static;
