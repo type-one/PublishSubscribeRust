@@ -345,7 +345,7 @@ fn main() {
         std::thread::sleep(Duration::from_secs(2));
     }
 
-    // Test data task
+    // Test data task wxith simple scalar data
     {
         let context = Arc::new(MyContext {
             info: "My data task context".to_string(),
@@ -369,6 +369,35 @@ fn main() {
         data_task.submit(100);
         data_task.submit(200);
         data_task.submit(300);
+
+        // Let the data task run for a few seconds
+        std::thread::sleep(Duration::from_secs(2));
+    }
+
+    // Test data task with array of data
+    {
+        let context = Arc::new(MyContext {
+            info: "My data task with array context".to_string(),
+            data: Arc::new(Mutex::new(vec![16, 17, 18])),
+            variables: Arc::new(Mutex::new(SyncDictionary::new())),
+        });
+
+        let mut data_task = DataTask::<MyContext, Vec<i32>>::new(
+            "MyDataTaskArray".to_string(),
+            context.clone(),
+            Arc::new(|ctx: Arc<MyContext>, task_name: &String, data: Vec<i32>| {
+                println!(
+                    "Data task '{}' executed with context: {}, data: {:?}",
+                    task_name, ctx.info, data
+                );
+            }),
+        );
+
+        data_task.start();
+
+        data_task.submit(vec![1, 2, 3]);
+        data_task.submit(vec![4, 5, 6]);
+        data_task.submit(vec![7, 8, 9]);
 
         // Let the data task run for a few seconds
         std::thread::sleep(Duration::from_secs(2));
