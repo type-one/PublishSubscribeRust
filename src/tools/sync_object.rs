@@ -50,7 +50,7 @@ impl SyncObject {
     }
 
     /// Waits for a signal to be received.
-    pub fn wait_for_signal(&mut self) {
+    pub fn wait_for_signal(&self) {
         let mut signaled_guard = self.signaled.lock().unwrap();
 
         while !*signaled_guard {
@@ -61,7 +61,7 @@ impl SyncObject {
     }
 
     /// Waits for a signal to be received with a timeout.
-    pub fn wait_for_signal_timeout(&mut self, timeout_ms: u64) {
+    pub fn wait_for_signal_timeout(&self, timeout_ms: u64) {
         let mut signaled_guard = self.signaled.lock().unwrap();
 
         while !*signaled_guard {
@@ -81,7 +81,7 @@ impl SyncObject {
     }
 
     /// Sends a signal to wake up one of the waiting threads.
-    pub fn signal(&mut self) {
+    pub fn signal(&self) {
         {
             let mut signaled_guard = self.signaled.lock().unwrap();
             *signaled_guard = true;
@@ -90,7 +90,7 @@ impl SyncObject {
     }
 
     /// Sends a signal to wake up all waiting threads.
-    pub fn signal_all(&mut self) {
+    pub fn signal_all(&self) {
         {
             let mut signaled_guard = self.signaled.lock().unwrap();
             *signaled_guard = true;

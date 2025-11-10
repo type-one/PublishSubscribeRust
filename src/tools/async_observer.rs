@@ -23,7 +23,7 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::tools::sync_object::SyncObject;
 use crate::tools::sync_observer::SyncObserver;
@@ -34,7 +34,7 @@ pub type EventEntry<Topic, Evt> = (Topic, Evt, String);
 
 /// Struct representing an asynchronous observer.
 pub struct AsyncObserver<Topic, Evt> {
-    wakeable_sync_object: Arc<Mutex<SyncObject>>,
+    wakeable_sync_object: Arc<SyncObject>,
     event_queue: Arc<SyncQueue<EventEntry<Topic, Evt>>>,
 }
 
@@ -49,7 +49,7 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
     /// Creates a new AsyncObserver.
     pub fn new() -> Self {
         AsyncObserver {
-            wakeable_sync_object: Arc::new(Mutex::new(SyncObject::new(false))),
+            wakeable_sync_object: Arc::new(SyncObject::new(false)),
             event_queue: Arc::new(SyncQueue::new()),
         }
     }
@@ -89,8 +89,8 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
 
     /// Waits for events with a timeout in milliseconds.
     pub fn wait_for_events(&self, timeout_ms: u64) {
-        let mut sync_obj = self.wakeable_sync_object.lock().unwrap();
-        sync_obj.wait_for_signal_timeout(timeout_ms)
+        self.wakeable_sync_object
+            .wait_for_signal_timeout(timeout_ms)
     }
 }
 
@@ -111,8 +111,6 @@ impl<Topic: Send + Sync + Clone + 'static, Evt: Send + Sync + Clone + 'static>
         let record = ((*topic).clone(), (*event).clone(), origin.to_string());
 
         self.event_queue.enqueue(record);
-
-        let mut sync_obj = self.wakeable_sync_object.lock().unwrap();
-        sync_obj.signal();
+        self.wakeable_sync_object.signal();
     }
 }

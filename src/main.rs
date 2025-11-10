@@ -107,7 +107,7 @@ fn main() {
     println!("Dequeued item: {:?}", item);
 
     // Test sync object
-    let mut sync = SyncObject::new(false);
+    let sync = SyncObject::new(false);
     //sync.wait_for_signal();
 
     sync.wait_for_signal_timeout(1000);
