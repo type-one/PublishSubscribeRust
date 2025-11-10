@@ -24,6 +24,9 @@
 //-----------------------------------------------------------------------------//
 
 // use num::traits::{Float, PrimInt};
+// https://docs.rs/atomic/latest/atomic/
+use atomic::Atomic;
+use bytemuck::Pod;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 /// Thread-safe and lock-free ring buffer implementation using standard Rust constructs.
 ///
@@ -35,8 +38,8 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 /// does not provide a trait to constraint T to be an atomic primitive type.
 /// Therefore, we use Default + Copy as constraints for T.
 #[derive(Debug)]
-pub struct LockFreeRingBuffer<T: Default + Copy, const POW2N: usize> {
-    ring_buffer: Vec<T>,
+pub struct LockFreeRingBuffer<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> {
+    ring_buffer: Vec<Atomic<T>>,
     push_index: AtomicUsize,
     pop_index: AtomicUsize,
     reading: AtomicBool,
@@ -44,7 +47,7 @@ pub struct LockFreeRingBuffer<T: Default + Copy, const POW2N: usize> {
 }
 
 /// Implementation of the LockFreeRingBuffer methods.
-impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
+impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
     const RING_BUFFER_SIZE: usize = 1 << POW2N;
     const RING_BUFFER_MASK: usize = Self::RING_BUFFER_SIZE - 1;
 
@@ -54,7 +57,7 @@ impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
 
         // Initialize the buffer with default values
         for _ in 0..Self::RING_BUFFER_SIZE {
-            tmp_buffer.push(T::default());
+            tmp_buffer.push(Atomic::new(T::default()));
         }
 
         LockFreeRingBuffer {
@@ -67,7 +70,7 @@ impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
     }
 
     /// Adds an item to the back of the ring buffer.
-    pub fn enqueue(&mut self, item: T) -> Result<(), &'static str> {
+    pub fn enqueue(&self, item: T) -> Result<(), &'static str> {
         let snap_write_index = self.push_index.load(Ordering::Acquire);
         let snap_read_index = self.pop_index.load(Ordering::Acquire);
 
@@ -89,14 +92,14 @@ impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
         // Add the item to the buffer
         self.writing.store(true, Ordering::Release);
         let write_index = self.push_index.fetch_add(1, Ordering::AcqRel);
-        self.ring_buffer[write_index & Self::RING_BUFFER_MASK] = item;
+        self.ring_buffer[write_index & Self::RING_BUFFER_MASK].store(item, Ordering::Release);
         self.writing.store(false, Ordering::Release);
 
         Ok(())
     }
 
     /// Removes and returns an item from the front of the ring buffer.
-    pub fn dequeue(&mut self) -> Option<T> {
+    pub fn dequeue(&self) -> Option<T> {
         let snap_write_index = self.push_index.load(Ordering::Acquire);
         let snap_read_index = self.pop_index.load(Ordering::Acquire);
 
@@ -116,7 +119,7 @@ impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
 
         self.reading.store(true, Ordering::Release);
         let read_index = self.pop_index.fetch_add(1, Ordering::AcqRel);
-        let item = self.ring_buffer[read_index & Self::RING_BUFFER_MASK];
+        let item = self.ring_buffer[read_index & Self::RING_BUFFER_MASK].load(Ordering::Acquire);
         self.reading.store(false, Ordering::Release);
 
         Some(item)
@@ -128,7 +131,9 @@ impl<T: Default + Copy, const POW2N: usize> LockFreeRingBuffer<T, POW2N> {
 }
 
 /// Default implementation for LockFreeRingBuffer.
-impl<T: Default + Copy, const POW2N: usize> Default for LockFreeRingBuffer<T, POW2N> {
+impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> Default
+    for LockFreeRingBuffer<T, POW2N>
+{
     fn default() -> Self {
         Self::new()
     }

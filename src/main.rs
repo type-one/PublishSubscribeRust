@@ -236,9 +236,7 @@ fn main() {
     // Test lock-free ring buffer with main and a child thread
     {
         const RING_BUFFER_POW2N: usize = 4; // 16 elements
-        let ring_buffer = Arc::new(Mutex::new(
-            LockFreeRingBuffer::<f64, RING_BUFFER_POW2N>::new(),
-        ));
+        let ring_buffer = Arc::new(LockFreeRingBuffer::<f64, RING_BUFFER_POW2N>::new());
 
         // Spawn a producer thread
         let producer_handle = std::thread::spawn({
@@ -246,7 +244,7 @@ fn main() {
             move || {
                 for i in 0..20 {
                     loop {
-                        if ring_buffer.lock().unwrap().enqueue(i as f64).is_ok() {
+                        if ring_buffer.enqueue(i as f64).is_ok() {
                             println!("LockFreeRingBuffer Enqueued: {}", i);
                             break;
                         } else {
@@ -262,7 +260,7 @@ fn main() {
         // Consumer in the main thread
         for _ in 0..20 {
             loop {
-                if let Some(value) = ring_buffer.lock().unwrap().dequeue() {
+                if let Some(value) = ring_buffer.dequeue() {
                     println!("LockFreeRingBuffer Dequeued: {}", value);
                     break;
                 } else {
