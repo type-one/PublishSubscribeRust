@@ -8,11 +8,12 @@ Agnostic, Lightweight and Portable Publish-Subscribe Helper
 
 Goodies:
 
-- simple thread-safe dictionary helper on top of `BTreeMap`
-- simple thread-safe contiguous queue on top of `VecDeque`
-- simple waitable object on top of `Mutex` and `Condvar`
-- simple periodic task helper
-- simple worker task helper
+- thread-safe dictionary helper on top of `BTreeMap`
+- thread-safe contiguous queue on top of `VecDeque`
+- lock-free ring buffer on top of `Vec`
+- waitable object on top of `Mutex` and `Condvar`
+- periodic task helper
+- worker task and worker pool helper
 - queuable commands
 
 [GitHub repository](https://github.com/type-one/PublishSubscribeRust)
@@ -30,7 +31,7 @@ An attempt to write a flexible little framework that can be used on desktop PCs 
 ## How
 
 Can be compiled on Linux and Windows, and should be easily
-adapted for other platforms (micro-computers, micro-controllers)
+adapted for other platforms (Mac, micro-computers, micro-controllers) as long as they have a Rust tool-chain.
 
 ```bash
 cargo build
