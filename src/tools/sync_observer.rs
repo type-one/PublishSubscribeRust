@@ -42,6 +42,28 @@ pub type SyncSubscription<Topic, Evt> = (Topic, Arc<dyn SyncObserver<Topic, Evt>
 /// Type alias for a loose-coupled handler function.
 pub type LooseCoupledHandler<Topic, Evt> = dyn Fn(&Topic, &Evt, &str) + Send + Sync;
 
+pub trait SyncSubjectTrait<Topic: Eq + Hash + Clone, Evt> {
+    fn subscribe(
+        &mut self,
+        topic: Topic,
+        observer: Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
+    );
+    fn unsubscribe(
+        &mut self,
+        topic: &Topic,
+        observer: &Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
+    );
+    fn subscribe_handler(
+        &mut self,
+        topic: Topic,
+        handler: Arc<LooseCoupledHandler<Topic, Evt>>,
+        handler_name: &str,
+    );
+    fn unsubscribe_handler(&mut self, topic: &Topic, handler_name: &str);
+    fn publish_named(&self, topic: &Topic, event: &Evt, origin: &str);
+    fn publish(&self, topic: &Topic, event: &Evt);
+}
+
 /// Struct representing a synchronous subject.
 pub struct SyncSubject<Topic, Evt> {
     rwlock: RwLock<()>,
@@ -61,9 +83,11 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
             name: name.to_string(),
         }
     }
+}
 
+impl<Topic: Eq + Hash + Clone, Evt> SyncSubjectTrait<Topic, Evt> for SyncSubject<Topic, Evt> {
     /// Subscribes an observer to a topic.
-    pub fn subscribe(
+    fn subscribe(
         &mut self,
         topic: Topic,
         observer: Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
@@ -73,7 +97,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     }
 
     /// Unsubscribes a single observer instance from a topic (keeps other observers for the same topic).
-    pub fn unsubscribe(
+    fn unsubscribe(
         &mut self,
         topic: &Topic,
         observer: &Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
@@ -96,7 +120,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     }
 
     /// Subscribes a loose-coupled handler to a topic.
-    pub fn subscribe_handler(
+    fn subscribe_handler(
         &mut self,
         topic: Topic,
         handler: Arc<LooseCoupledHandler<Topic, Evt>>,
@@ -108,7 +132,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     }
 
     /// Unsubscribes a loose-coupled handler from a topic by name.
-    pub fn unsubscribe_handler(&mut self, topic: &Topic, handler_name: &str) {
+    fn unsubscribe_handler(&mut self, topic: &Topic, handler_name: &str) {
         let _lock = self.rwlock.write().unwrap();
         if let Some(handlers) = self.handlers.get_vec(topic) {
             // Keep only those handlers whose name does NOT match handler_name.
@@ -127,7 +151,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     }
 
     /// Publishes an event to a topic with a specified origin.
-    pub fn publish_named(&self, topic: &Topic, event: &Evt, origin: &str) {
+    fn publish_named(&self, topic: &Topic, event: &Evt, origin: &str) {
         let _lock = self.rwlock.read().unwrap();
         if let Some(observers) = self.subscribers.get_vec(topic) {
             for observer in observers {
@@ -142,7 +166,7 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     }
 
     /// Publishes an event to a topic using the subject's name as the origin.
-    pub fn publish(&self, topic: &Topic, event: &Evt) {
+    fn publish(&self, topic: &Topic, event: &Evt) {
         self.publish_named(topic, event, &self.name);
     }
 }

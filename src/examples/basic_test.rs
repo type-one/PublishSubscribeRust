@@ -39,7 +39,7 @@ use crate::tools::lock_free_ring_buffer::LockFreeRingBuffer;
 use crate::tools::periodic_task::PeriodicTask;
 use crate::tools::sync_dictionary::SyncDictionary;
 use crate::tools::sync_object::SyncObject;
-use crate::tools::sync_observer::{SyncObserver, SyncSubject};
+use crate::tools::sync_observer::{SyncObserver, SyncSubject, SyncSubjectTrait};
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_pool::WorkerPool;
