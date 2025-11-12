@@ -39,3 +39,7 @@ pub mod tools {
     pub mod worker_task;
     pub mod worker_trait;
 }
+
+pub mod examples {
+    pub mod basic_test;
+}
