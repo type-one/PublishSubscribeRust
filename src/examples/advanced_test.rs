@@ -534,9 +534,9 @@ impl Archiver {
                 }),
                 2000,
             ),
-            data_observer: Arc::new(AsyncObserver::new()),
-            events_observer: Arc::new(AsyncObserver::new()),
-            commands_observer: Arc::new(AsyncObserver::new()),
+            data_observer: local_data_observer,
+            events_observer: local_events_observer,
+            commands_observer: local_commands_observer,
         }
     }
 
@@ -590,9 +590,9 @@ impl Emitter {
                         )),
                         "Emitter",
                     );
-                    *rel_time.lock().unwrap() += 0.1; // assuming period is 100 ms
+                    *rel_time.lock().unwrap() += 1.0; // assuming period is 1000 ms
                 }),
-                100,
+                1000,
             ),
             relative_time: rel_time_clone,
         }
@@ -623,6 +623,7 @@ pub fn advanced_test() {
         "---------------------------------------------------".white()
     );
 
+    // Create shared context
     let context = Arc::new(Mutex::new(Context {
         variables: SyncDictionary::new(),
         data_archives: SyncQueue::new(),
@@ -638,10 +639,12 @@ pub fn advanced_test() {
         },
     }));
 
+    // Create components
     let mut emitter = Emitter::new(context.clone());
     let mut archiver = Archiver::new(context.clone());
     let mut classifier = Classifier::new(context.clone());
 
+    // Setup subscriptions
     context
         .lock()
         .unwrap()
@@ -674,6 +677,7 @@ pub fn advanced_test() {
         archiver.commands_observer.clone(),
     );
 
+    // Setup loose-coupled handlers for spying
     context.lock().unwrap().data_hub.subscribe_handler(
         &"SensorData".to_string(),
         Arc::new(|topic: &String, event: &DataValue, origin: &str| {
@@ -707,12 +711,14 @@ pub fn advanced_test() {
         "SpyCommandsHandler",
     );
 
+    // Start components
     classifier.start();
     archiver.start();
     emitter.start();
 
-    std::thread::sleep(std::time::Duration::from_secs(2));
+    std::thread::sleep(std::time::Duration::from_secs(5));
 
+    // Simulate publishing commands
     println!("{}", "Publish start command...".white());
     context.lock().unwrap().commands_hub.publish_named(
         &"ControlCommands".to_string(),
@@ -747,10 +753,12 @@ pub fn advanced_test() {
         "AdvancedTest",
     );
 
+    // Let the system run for a while
     println!("{}", "Let the system run for a while...".white());
 
     std::thread::sleep(std::time::Duration::from_secs(10));
 
+    // Simulate publishing an alert event
     println!("{}", "Publish alert event...".white());
     context.lock().unwrap().events_hub.publish_named(
         &"SystemEvents".to_string(),
@@ -758,7 +766,7 @@ pub fn advanced_test() {
         "AdvancedTest",
     );
 
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    std::thread::sleep(std::time::Duration::from_secs(10));
 
     println!(
         "{}",
