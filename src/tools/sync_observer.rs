@@ -31,31 +31,27 @@ use std::sync::{Arc, RwLock};
 // https://juanchopanzacpp.wordpress.com/2013/02/24/simple-observer-pattern-implementation-c11/
 // http://www.codeproject.com/Articles/328365/Understanding-and-Implementing-Observer-Pattern
 
-/// Trait defining a synchronous observer.
-pub trait SyncObserver<Topic, Evt> {
+/// Trait defining an observer.
+pub trait Observer<Topic, Evt> {
     fn inform(&self, topic: &Topic, event: &Evt, origin: &str);
 }
 
-/// Type alias for a synchronous subscription.
-pub type SyncSubscription<Topic, Evt> = (Topic, Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>);
+/// Type alias for a subscription.
+pub type Subscription<Topic, Evt> = (Topic, Arc<dyn Observer<Topic, Evt> + Send + Sync>);
 
 /// Type alias for a loose-coupled handler function.
 pub type LooseCoupledHandler<Topic, Evt> = dyn Fn(&Topic, &Evt, &str) + Send + Sync;
 
-pub trait SyncSubjectTrait<Topic: Eq + Hash + Clone, Evt> {
-    fn subscribe(
-        &mut self,
-        topic: Topic,
-        observer: Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
-    );
+pub trait SubjectTrait<Topic: Eq + Hash + Clone, Evt> {
+    fn subscribe(&mut self, topic: &Topic, observer: Arc<dyn Observer<Topic, Evt> + Send + Sync>);
     fn unsubscribe(
         &mut self,
         topic: &Topic,
-        observer: &Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
+        observer: &Arc<dyn Observer<Topic, Evt> + Send + Sync>,
     );
     fn subscribe_handler(
         &mut self,
-        topic: Topic,
+        topic: &Topic,
         handler: Arc<LooseCoupledHandler<Topic, Evt>>,
         handler_name: &str,
     );
@@ -64,19 +60,19 @@ pub trait SyncSubjectTrait<Topic: Eq + Hash + Clone, Evt> {
     fn publish(&self, topic: &Topic, event: &Evt);
 }
 
-/// Struct representing a synchronous subject.
-pub struct SyncSubject<Topic, Evt> {
+/// Struct representing an observable subject.
+pub struct Subject<Topic, Evt> {
     rwlock: RwLock<()>,
-    subscribers: MultiMap<Topic, Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>>,
+    subscribers: MultiMap<Topic, Arc<dyn Observer<Topic, Evt> + Send + Sync>>,
     handlers: MultiMap<Topic, (Arc<LooseCoupledHandler<Topic, Evt>>, String)>,
     name: String,
 }
 
-/// Implementation of the SyncSubject methods.
-impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
+/// Implementation of the Subject methods.
+impl<Topic: Eq + Hash + Clone, Evt> Subject<Topic, Evt> {
     /// Creates a new SyncSubject.
     pub fn new(name: &str) -> Self {
-        SyncSubject {
+        Subject {
             rwlock: RwLock::new(()),
             subscribers: MultiMap::new(),
             handlers: MultiMap::new(),
@@ -85,27 +81,23 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubject<Topic, Evt> {
     }
 }
 
-impl<Topic: Eq + Hash + Clone, Evt> SyncSubjectTrait<Topic, Evt> for SyncSubject<Topic, Evt> {
+impl<Topic: Eq + Hash + Clone, Evt> SubjectTrait<Topic, Evt> for Subject<Topic, Evt> {
     /// Subscribes an observer to a topic.
-    fn subscribe(
-        &mut self,
-        topic: Topic,
-        observer: Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
-    ) {
+    fn subscribe(&mut self, topic: &Topic, observer: Arc<dyn Observer<Topic, Evt> + Send + Sync>) {
         let _lock = self.rwlock.write().unwrap();
-        self.subscribers.insert(topic, observer);
+        self.subscribers.insert(topic.clone(), observer);
     }
 
     /// Unsubscribes a single observer instance from a topic (keeps other observers for the same topic).
     fn unsubscribe(
         &mut self,
         topic: &Topic,
-        observer: &Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>,
+        observer: &Arc<dyn Observer<Topic, Evt> + Send + Sync>,
     ) {
         let _lock = self.rwlock.write().unwrap();
         if let Some(observers) = self.subscribers.get_vec(topic) {
             // Keep only those observers that are NOT the one to remove.
-            let retained: Vec<Arc<dyn SyncObserver<Topic, Evt> + Send + Sync>> = observers
+            let retained: Vec<Arc<dyn Observer<Topic, Evt> + Send + Sync>> = observers
                 .iter()
                 .filter(|o| !Arc::ptr_eq(o, observer))
                 .cloned()
@@ -122,13 +114,13 @@ impl<Topic: Eq + Hash + Clone, Evt> SyncSubjectTrait<Topic, Evt> for SyncSubject
     /// Subscribes a loose-coupled handler to a topic.
     fn subscribe_handler(
         &mut self,
-        topic: Topic,
+        topic: &Topic,
         handler: Arc<LooseCoupledHandler<Topic, Evt>>,
         handler_name: &str,
     ) {
         let _lock = self.rwlock.write().unwrap();
         self.handlers
-            .insert(topic, (handler, handler_name.to_string()));
+            .insert(topic.clone(), (handler, handler_name.to_string()));
     }
 
     /// Unsubscribes a loose-coupled handler from a topic by name.

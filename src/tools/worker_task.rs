@@ -49,7 +49,7 @@ pub struct WorkerTask<ContextType: Send + Sync + 'static> {
 /// Implementation of the WorkerTask methods.
 impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
     /// Creates a new WorkerTask.
-    pub fn new(task_name: String, context: Arc<ContextType>) -> Self {
+    pub fn new(context: Arc<ContextType>, task_name: String) -> Self {
         WorkerTask {
             task_name,
             context: context.clone(),
@@ -68,10 +68,11 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
     ) {
         // Wait for work
         loop {
-            let received_message = receiver.recv().unwrap();
+            // Wait for a signal to do work (or stop)
+            let received_message = receiver.recv().unwrap_or(false);
 
             if !received_message {
-                break; // Exit the loop if a stop signal is received
+                break; // Exit the loop if a stop signal is received or channel is closed
             }
 
             // Process all tasks in the queue
@@ -86,7 +87,7 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
 impl<ContextType: Send + Sync + 'static> Drop for WorkerTask<ContextType> {
     fn drop(&mut self) {
         // Stop the worker task
-        self.work_sender.send(false).unwrap();
+        self.work_sender.send(false).unwrap_or_default(); // send stop signal to worker task and ignore errors
 
         // wait for the worker task to finish
         if let Some(handle) = self.task_handle.take() {

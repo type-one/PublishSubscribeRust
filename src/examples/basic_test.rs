@@ -39,7 +39,7 @@ use crate::tools::lock_free_ring_buffer::LockFreeRingBuffer;
 use crate::tools::periodic_task::PeriodicTask;
 use crate::tools::sync_dictionary::SyncDictionary;
 use crate::tools::sync_object::SyncObject;
-use crate::tools::sync_observer::{SyncObserver, SyncSubject, SyncSubjectTrait};
+use crate::tools::sync_observer::{Observer, Subject, SubjectTrait};
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_pool::WorkerPool;
@@ -358,10 +358,10 @@ fn test_periodic_task_function() {
     });
 
     let mut task = PeriodicTask::new(
+        context.clone(),
         "MyPeriodicTask".to_string(),
         Arc::new(my_periodic_function),
         1000,
-        context.clone(),
     );
 
     task.start();
@@ -383,6 +383,7 @@ fn test_periodic_task_closure() {
     });
 
     let mut task_closure = PeriodicTask::new(
+        context_closure.clone(),
         "ClosurePeriodicTask".to_string(),
         Arc::new(|ctx: Arc<MyContext>, task_name: &String| {
             println!(
@@ -391,7 +392,6 @@ fn test_periodic_task_closure() {
             );
         }),
         1500,
-        context_closure.clone(),
     );
 
     task_closure.start();
@@ -412,7 +412,7 @@ fn test_worker_task() {
         variables: Arc::new(Mutex::new(SyncDictionary::new())),
     });
 
-    let mut worker_task = WorkerTask::new("MyWorkerTask".to_string(), context.clone());
+    let mut worker_task = WorkerTask::new(context.clone(), "MyWorkerTask".to_string());
 
     worker_task.start();
 
@@ -521,8 +521,8 @@ fn test_data_task_scalar() {
     });
 
     let mut data_task = DataTask::<MyContext, i32>::new(
-        "MyDataTask".to_string(),
         context.clone(),
+        "MyDataTask".to_string(),
         Arc::new(|ctx: Arc<MyContext>, task_name: &String, data: i32| {
             println!(
                 "Data task '{}' executed with context: {}, data: {}",
@@ -554,8 +554,8 @@ fn test_data_task_array() {
     });
 
     let mut data_task = DataTask::<MyContext, Vec<i32>>::new(
-        "MyDataTaskArray".to_string(),
         context.clone(),
+        "MyDataTaskArray".to_string(),
         Arc::new(|ctx: Arc<MyContext>, task_name: &String, data: Vec<i32>| {
             println!(
                 "Data task '{}' executed with context: {}, data: {:?}",
@@ -582,7 +582,7 @@ fn test_sync_observer_and_subject() {
 
     struct MyObserver;
 
-    impl SyncObserver<String, String> for MyObserver {
+    impl Observer<String, String> for MyObserver {
         fn inform(&self, topic: &String, event: &String, origin: &str) {
             println!(
                 "Observer informed - Topic: {}, Event: {}, Origin: {}",
@@ -591,14 +591,14 @@ fn test_sync_observer_and_subject() {
         }
     }
 
-    let mut subject = SyncSubject::<String, String>::new("MySyncSubject");
+    let mut subject = Subject::<String, String>::new("MySyncSubject");
 
     let observer = Arc::new(MyObserver);
-    subject.subscribe("TestTopic".to_string(), observer.clone());
+    subject.subscribe(&"TestTopic".to_string(), observer.clone());
 
     // subscribe a closure as a loose-coupled handler
     subject.subscribe_handler(
-        "TestTopic".to_string(),
+        &"TestTopic".to_string(),
         Arc::new(|topic: &String, event: &String, origin: &str| {
             println!(
                 "Loose-coupled handler - Topic: {}, Event: {}, Origin: {}",
@@ -634,6 +634,11 @@ fn test_async_observer_in_periodic_task() {
 
             // Create the periodic task that will process events
             let task = PeriodicTask::new(
+                Arc::new(MyContext {
+                    info: "AsyncObserver periodic task context".to_string(),
+                    data: Arc::new(Mutex::new(vec![])),
+                    variables: Arc::new(Mutex::new(SyncDictionary::new())),
+                }),
                 "AsyncObserverTask".to_string(),
                 Arc::new(move |_ctx: Arc<MyContext>, _task_name: &String| {
                     // Process events directly using the captured observer clone
@@ -654,11 +659,6 @@ fn test_async_observer_in_periodic_task() {
                     }
                 }),
                 1000,
-                Arc::new(MyContext {
-                    info: "AsyncObserver periodic task context".to_string(),
-                    data: Arc::new(Mutex::new(vec![])),
-                    variables: Arc::new(Mutex::new(SyncDictionary::new())),
-                }),
             );
 
             MyAsyncObserver { observer, task }
@@ -671,24 +671,24 @@ fn test_async_observer_in_periodic_task() {
     }
 
     // Implement SyncObserver for MyAsyncObserver by delegating to the internal AsyncObserver
-    impl SyncObserver<String, String> for MyAsyncObserver {
+    impl Observer<String, String> for MyAsyncObserver {
         fn inform(&self, topic: &String, event: &String, origin: &str) {
             self.observer.inform(topic, event, origin);
         }
     }
 
-    let mut subject = SyncSubject::<String, String>::new("MySubject");
+    let mut subject = Subject::<String, String>::new("MySubject");
 
     let mut async_observer = Arc::new(MyAsyncObserver::new());
 
     // Start the internal periodic task
     Arc::get_mut(&mut async_observer).unwrap().start();
 
-    subject.subscribe("TestTopic".to_string(), async_observer.clone());
+    subject.subscribe(&"TestTopic".to_string(), async_observer.clone());
 
     // subscribe a "debug" closure as a loose-coupled handler
     subject.subscribe_handler(
-        "TestTopic".to_string(),
+        &"TestTopic".to_string(),
         Arc::new(|topic: &String, event: &String, origin: &str| {
             println!(
                 "Loose-coupled handler - Topic: {}, Event: {}, Origin: {}",

@@ -23,9 +23,14 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use pubsub_rs::examples::advanced_test;
 use pubsub_rs::examples::basic_test;
+
 /// Main entry point for testing the synchronization tools.
 fn main() {
     // all-in-one basic tests of the different helper tools
     basic_test::basic_test();
+
+    // specific publish/subscribe advanced test with parsing
+    advanced_test::advanced_test();
 }

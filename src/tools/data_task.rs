@@ -52,8 +52,8 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
 {
     /// Creates a new DataTask.
     pub fn new(
-        task_name: String,
         context: Arc<ContextType>,
+        task_name: String,
         data_processing_function: Arc<DataTaskFunction<ContextType, DataType>>,
     ) -> Self {
         DataTask {
@@ -76,10 +76,11 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
     ) {
         // Wait for work
         loop {
-            let received_message = receiver.recv().unwrap();
+            // Wait for a signal to do work (or stop)
+            let received_message = receiver.recv().unwrap_or(false);
 
             if !received_message {
-                break; // Exit the loop if a stop signal is received
+                break; // Exit the loop if a stop signal is received or channel is closed
             }
 
             // Process all data in the queue
@@ -103,7 +104,7 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> Drop
 {
     fn drop(&mut self) {
         // Stop the data task
-        self.data_sender.send(false).unwrap();
+        self.data_sender.send(false).unwrap_or_default(); // send stop signal to data task and ignore errors
 
         // wait for the data task to finish
         if let Some(handle) = self.task_handle.take() {

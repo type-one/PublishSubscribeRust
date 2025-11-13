@@ -43,10 +43,10 @@ pub struct PeriodicTask<ContextType> {
 impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
     /// Creates a new PeriodicTask.
     pub fn new(
+        context: Arc<ContextType>,
         task_name: String,
         task_function: Arc<TaskFunction<ContextType>>,
         period_ms: u64,
-        context: Arc<ContextType>,
     ) -> Self {
         PeriodicTask {
             task_name,

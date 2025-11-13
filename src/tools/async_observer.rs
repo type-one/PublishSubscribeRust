@@ -26,7 +26,7 @@
 use std::sync::Arc;
 
 use crate::tools::sync_object::SyncObject;
-use crate::tools::sync_observer::SyncObserver;
+use crate::tools::sync_observer::Observer;
 use crate::tools::sync_queue::SyncQueue;
 
 /// Type alias for an event entry.
@@ -103,8 +103,8 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> Default
 }
 
 /// Implementation of the SyncObserver trait for AsyncObserver.
-impl<Topic: Send + Sync + Clone + 'static, Evt: Send + Sync + Clone + 'static>
-    SyncObserver<Topic, Evt> for AsyncObserver<Topic, Evt>
+impl<Topic: Send + Sync + Clone + 'static, Evt: Send + Sync + Clone + 'static> Observer<Topic, Evt>
+    for AsyncObserver<Topic, Evt>
 {
     /// Informs the observer of an event.
     fn inform(&self, topic: &Topic, event: &Evt, origin: &str) {
