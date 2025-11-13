@@ -39,6 +39,7 @@ use crate::tools::worker_pool::WorkerPool;
 use crate::tools::worker_task::WorkerTask;
 use crate::tools::worker_trait::WorkerTrait;
 
+/// Enum representing different types of data values.
 #[derive(Debug, Clone)]
 enum DataValue {
     Int(i32),
@@ -46,12 +47,14 @@ enum DataValue {
     Text(String),
 }
 
+/// Enum representing different types of events.
 #[derive(Debug, Clone)]
 enum Event {
     VariableUpdate(String, DataValue),
     Alert(String),
 }
 
+/// Enum representing different types of commands.
 #[derive(Debug, Clone)]
 enum Command {
     Start,
@@ -60,6 +63,7 @@ enum Command {
     Resume,
 }
 
+/// Implement Display trait for Command enum for better logging.
 impl Display for Command {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -71,11 +75,14 @@ impl Display for Command {
     }
 }
 
+/// Struct representing a data hub.
 struct DataHub {
     subject: Subject<String, DataValue>,
 }
 
+/// Implementation of SubjectTrait for DataHub.
 impl SubjectTrait<String, DataValue> for DataHub {
+    /// Subscribes an observer to a topic.
     fn subscribe(
         &mut self,
         topic: &String,
@@ -84,6 +91,7 @@ impl SubjectTrait<String, DataValue> for DataHub {
         self.subject.subscribe(topic, observer);
     }
 
+    /// Unsubscribes a single observer instance from a topic (keeps other observers for the same topic).
     fn unsubscribe(
         &mut self,
         topic: &String,
@@ -92,10 +100,12 @@ impl SubjectTrait<String, DataValue> for DataHub {
         self.subject.unsubscribe(topic, observer);
     }
 
+    /// Publishes an event to a topic.
     fn publish(&self, topic: &String, event: &DataValue) {
         self.subject.publish(topic, event);
     }
 
+    /// Subscribes a handler to a topic.
     fn subscribe_handler(
         &mut self,
         topic: &String,
@@ -104,19 +114,25 @@ impl SubjectTrait<String, DataValue> for DataHub {
     ) {
         self.subject.subscribe_handler(topic, handler, handler_name);
     }
+
+    /// Unsubscribes a handler from a topic (keeps other handlers for the same topic).
     fn unsubscribe_handler(&mut self, topic: &String, handler_name: &str) {
         self.subject.unsubscribe_handler(topic, handler_name);
     }
 
+    /// Publishes an event to a topic with origin information.
     fn publish_named(&self, topic: &String, event: &DataValue, origin: &str) {
         self.subject.publish_named(topic, event, origin);
     }
 }
+/// Struct representing an events hub.
 struct EventsHub {
     subject: Subject<String, Event>,
 }
 
+/// Implementation of SubjectTrait for EventsHub.
 impl SubjectTrait<String, Event> for EventsHub {
+    /// Subscribes an observer to a topic.
     fn subscribe(
         &mut self,
         topic: &String,
@@ -125,6 +141,7 @@ impl SubjectTrait<String, Event> for EventsHub {
         self.subject.subscribe(topic, observer);
     }
 
+    /// Unsubscribes a single observer instance from a topic (keeps other observers for the same topic).
     fn unsubscribe(
         &mut self,
         topic: &String,
@@ -133,10 +150,12 @@ impl SubjectTrait<String, Event> for EventsHub {
         self.subject.unsubscribe(topic, observer);
     }
 
+    /// Publishes an event to a topic.
     fn publish(&self, topic: &String, event: &Event) {
         self.subject.publish(topic, event);
     }
 
+    /// Subscribes a handler to a topic.
     fn subscribe_handler(
         &mut self,
         topic: &String,
@@ -146,20 +165,25 @@ impl SubjectTrait<String, Event> for EventsHub {
         self.subject.subscribe_handler(topic, handler, handler_name);
     }
 
+    /// Unsubscribes a handler from a topic (keeps other handlers for the same topic).
     fn unsubscribe_handler(&mut self, topic: &String, handler_name: &str) {
         self.subject.unsubscribe_handler(topic, handler_name);
     }
 
+    /// Publishes an event to a topic with origin information.
     fn publish_named(&self, topic: &String, event: &Event, origin: &str) {
         self.subject.publish_named(topic, event, origin);
     }
 }
 
+/// Struct representing a commands hub.
 struct CommandsHub {
     subject: Subject<String, Command>,
 }
 
+/// Implementation of SubjectTrait for CommandsHub.
 impl SubjectTrait<String, Command> for CommandsHub {
+    /// Subscribes an observer to a topic.
     fn subscribe(
         &mut self,
         topic: &String,
@@ -168,6 +192,7 @@ impl SubjectTrait<String, Command> for CommandsHub {
         self.subject.subscribe(topic, observer);
     }
 
+    /// Unsubscribes a single observer instance from a topic (keeps other observers for the same topic).
     fn unsubscribe(
         &mut self,
         topic: &String,
@@ -176,10 +201,12 @@ impl SubjectTrait<String, Command> for CommandsHub {
         self.subject.unsubscribe(topic, observer);
     }
 
+    /// Publishes an event to a topic.
     fn publish(&self, topic: &String, event: &Command) {
         self.subject.publish(topic, event);
     }
 
+    /// Subscribes a handler to a topic.
     fn subscribe_handler(
         &mut self,
         topic: &String,
@@ -189,15 +216,18 @@ impl SubjectTrait<String, Command> for CommandsHub {
         self.subject.subscribe_handler(topic, handler, handler_name);
     }
 
+    /// Unsubscribes a handler from a topic (keeps other handlers for the same topic).
     fn unsubscribe_handler(&mut self, topic: &String, handler_name: &str) {
         self.subject.unsubscribe_handler(topic, handler_name);
     }
 
+    /// Publishes an event to a topic with origin information.
     fn publish_named(&self, topic: &String, event: &Command, origin: &str) {
         self.subject.publish_named(topic, event, origin);
     }
 }
 
+/// Struct representing the shared context.
 struct Context {
     variables: SyncDictionary<String, DataValue>,
     data_archives: SyncQueue<DataValue>,
@@ -209,6 +239,7 @@ struct Context {
 
 type ContextWrapper = Mutex<Context>;
 
+/// Struct representing the classifier.
 struct Classifier {
     worker_pool: Arc<Mutex<WorkerPool<ContextWrapper>>>,
     periodic_task: PeriodicTask<ContextWrapper>,
@@ -217,6 +248,7 @@ struct Classifier {
     commands_observer: Arc<AsyncObserver<String, Command>>,
 }
 
+/// Implementation of Classifier.
 impl Classifier {
     pub fn new(context: Arc<ContextWrapper>) -> Self {
         let local_worker_pool = Arc::new(Mutex::new(WorkerPool::new(context.clone())));
@@ -250,11 +282,12 @@ impl Classifier {
                         let events = local_data_observer_clone.pop_all_events();
                         for (topic, event, origin) in events {
                             println!(
-                                "{} '{}' {} '{}'",
-                                "Classifier processing data event on topic".blue(),
+                                "{} '{}' {} '{}' : data: {:?}",
+                                "Classifier processing data on topic".blue(),
                                 topic.blue(),
                                 "origin".blue(),
-                                origin.blue()
+                                origin.blue(),
+                                event
                             );
                             // Process data event
 
@@ -276,11 +309,12 @@ impl Classifier {
                         let events = local_events_observer_clone.pop_all_events();
                         for (topic, event, origin) in events {
                             println!(
-                                "{} '{}' {} '{}'",
+                                "{} '{}' {} '{}' : event: {:?}",
                                 "Classifier processing event on topic".blue(),
                                 topic.blue(),
                                 "origin".blue(),
-                                origin.blue()
+                                origin.blue(),
+                                event
                             );
                             // Process event
                         }
@@ -290,11 +324,12 @@ impl Classifier {
                         let events = local_commands_observer_clone.pop_all_events();
                         for (topic, command, origin) in events {
                             println!(
-                                "{} '{}' {} '{}'",
-                                "Classifier processing command on topic".blue(),
+                                "{} '{}' {} '{}' : command: {:?}",
+                                "Classifier received command on topic".blue(),
                                 topic.blue(),
                                 "origin".blue(),
-                                origin.blue()
+                                origin.blue(),
+                                command
                             );
 
                             // Process command in worker pool
@@ -352,15 +387,19 @@ impl Classifier {
     pub fn start(&mut self) {
         self.worker_pool.lock().unwrap().start();
         self.periodic_task.start();
+        println!("{}", "Classifier started.".blue());
     }
 }
 
+/// Implementation of Drop for Classifier.
 impl Drop for Classifier {
     fn drop(&mut self) {
         // Clean up resources when the Classifier is dropped
+        println!("{}", "Classifier stopped.".blue());
     }
 }
 
+/// Struct representing the archiver.
 struct Archiver {
     worker_task: Arc<Mutex<WorkerTask<ContextWrapper>>>,
     periodic_task: PeriodicTask<ContextWrapper>,
@@ -369,6 +408,7 @@ struct Archiver {
     commands_observer: Arc<AsyncObserver<String, Command>>,
 }
 
+/// Implementation of Archiver.
 impl Archiver {
     pub fn new(context: Arc<ContextWrapper>) -> Self {
         let local_worker_task = Arc::new(Mutex::new(WorkerTask::new(
@@ -408,11 +448,12 @@ impl Archiver {
                         let events = local_data_observer_clone.pop_all_events();
                         for (topic, data, origin) in events {
                             println!(
-                                "{} '{}' {} '{}'",
+                                "{} '{}' {} '{}' : data: {:?}",
                                 "Archiver processing data on topic".green(),
                                 topic.green(),
                                 "origin".green(),
-                                origin.green()
+                                origin.green(),
+                                data
                             );
                             // Archive data
                             ctx.lock().unwrap().data_archives.enqueue(data);
@@ -423,11 +464,12 @@ impl Archiver {
                         let events = local_events_observer_clone.pop_all_events();
                         for (topic, event, origin) in events {
                             println!(
-                                "{} '{}' {} '{}'",
+                                "{} '{}' {} '{}' : event: {:?}",
                                 "Archiver processing event on topic".green(),
                                 topic.green(),
                                 "origin".green(),
-                                origin.green()
+                                origin.green(),
+                                event
                             );
                             // Archive event
                             ctx.lock().unwrap().events_archives.enqueue(event);
@@ -438,12 +480,12 @@ impl Archiver {
                         let events = local_commands_observer_clone.pop_all_events();
                         for (topic, command, origin) in events {
                             println!(
-                                "{} '{}' {} '{}' {}",
+                                "{} '{}' {} '{}' : command: {:?}",
                                 "Archiver received command on topic".green(),
                                 topic.green(),
                                 "origin".green(),
                                 origin.green(),
-                                command.to_string().green()
+                                command
                             );
 
                             // Process command in worker task
@@ -498,23 +540,29 @@ impl Archiver {
         }
     }
 
+    /// Starts the archiver.
     pub fn start(&mut self) {
         self.worker_task.lock().unwrap().start();
         self.periodic_task.start();
+        println!("{}", "Archiver started.".green());
     }
 }
 
+/// Implementation of Drop for Archiver.
 impl Drop for Archiver {
     fn drop(&mut self) {
         // Clean up resources when the Archiver is dropped
+        println!("{}", "Archiver stopped.".green());
     }
 }
 
+/// Struct representing the emitter.
 struct Emitter {
     periodic_task: PeriodicTask<ContextWrapper>,
     relative_time: Arc<Mutex<f64>>, // used via clone by internal periodic task
 }
 
+/// Implementation of Emitter.
 impl Emitter {
     pub fn new(context: Arc<ContextWrapper>) -> Self {
         let rel_time = Arc::new(Mutex::new(0.0));
@@ -552,12 +600,15 @@ impl Emitter {
 
     pub fn start(&mut self) {
         self.periodic_task.start();
+        println!("{}", "Emitter started.".purple());
     }
 }
 
+/// Implementation of Drop for Emitter.
 impl Drop for Emitter {
     fn drop(&mut self) {
         // Clean up resources when the Emitter is dropped
+        println!("{}", "Emitter stopped.".purple());
     }
 }
 

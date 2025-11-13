@@ -129,6 +129,6 @@ impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerTask
         // Signal the worker task that there is work to do
         self.work_sender
             .send(true)
-            .expect("Failed to send work signal to worker task");
+            .unwrap_or_else(|_| panic!("Failed to send work signal to worker task"));
     }
 }
