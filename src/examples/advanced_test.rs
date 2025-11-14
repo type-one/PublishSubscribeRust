@@ -24,7 +24,6 @@
 //-----------------------------------------------------------------------------//
 
 use colored::Colorize;
-use std::char::REPLACEMENT_CHARACTER;
 use std::fmt::Display;
 use std::sync::{Arc, Mutex};
 
@@ -334,7 +333,7 @@ impl Classifier {
 
                             // Process command in worker pool
                             local_worker_pool_clone.lock().unwrap().delegate(Arc::new(
-                                move |ctx: Arc<ContextWrapper>, task_name: &String| {
+                                move |_ctx: Arc<ContextWrapper>, task_name: &String| {
                                     println!(
                                         "{} '{}' {} '{}'",
                                         "Worker in task".bright_blue(),
@@ -490,7 +489,7 @@ impl Archiver {
 
                             // Process command in worker task
                             local_worker_task_clone.lock().unwrap().delegate(Arc::new(
-                                move |ctx: Arc<ContextWrapper>, task_name: &String| {
+                                move |_ctx: Arc<ContextWrapper>, task_name: &String| {
                                     println!(
                                         "{} '{}' {} '{}'",
                                         "Worker in task".yellow(),
