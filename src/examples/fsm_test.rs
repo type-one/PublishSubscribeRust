@@ -1,4 +1,5 @@
 // possible states
+#[derive(Clone, Copy)]
 enum TrafficLightState {
     Off,
     OperableInitializing,
@@ -13,61 +14,78 @@ enum TrafficLightEvent {
     InitDone,
     NextState,
 }
-
-struct TrafficLightFSM {
-    state: TrafficLightState,
-}
-
-impl TrafficLightFSM {
-    fn new() -> Self {
-        TrafficLightFSM {
-            state: TrafficLightState::Off,
+impl TrafficLightState {
+    fn power_on(&self) -> Self {
+        match *self {
+            TrafficLightState::Off => TrafficLightState::OperableInitializing,
+            _ => *self,
         }
     }
 
-    fn handle_event(&mut self, event: TrafficLightEvent) {
-        match (&self.state, event) {
-            (TrafficLightState::Off, TrafficLightEvent::PowerOn) => {
-                self.state = TrafficLightState::OperableInitializing;
-                println!("Transition to Initializing");
+    fn init_done(&self) -> Self {
+        match *self {
+            TrafficLightState::OperableInitializing => TrafficLightState::OperableRed(10),
+            _ => *self,
+        }
+    }
+
+    fn next_state(&self) -> Self {
+        match *self {
+            TrafficLightState::OperableRed(_) => TrafficLightState::OperableGreen(15),
+            TrafficLightState::OperableGreen(_) => TrafficLightState::OperableYellow(3),
+            TrafficLightState::OperableYellow(_) => TrafficLightState::OperableRed(10),
+            _ => *self,
+        }
+    }
+
+    fn power_off(&self) -> Self {
+        TrafficLightState::Off
+    }
+
+    fn on_event(&self, event: TrafficLightEvent) -> Self {
+        match event {
+            TrafficLightEvent::PowerOn => self.power_on(),
+            TrafficLightEvent::InitDone => self.init_done(),
+            TrafficLightEvent::NextState => self.next_state(),
+            TrafficLightEvent::PowerOff => self.power_off(),
+        }
+    }
+
+    fn on_state(&self) {
+        match *self {
+            TrafficLightState::Off => println!("State: Off"),
+            TrafficLightState::OperableInitializing => println!("State: Initializing"),
+            TrafficLightState::OperableRed(duration) => {
+                println!("State: Red for {} seconds", duration)
             }
-            (TrafficLightState::OperableInitializing, TrafficLightEvent::InitDone) => {
-                self.state = TrafficLightState::OperableRed(10);
-                println!("Transition to Red");
+            TrafficLightState::OperableGreen(duration) => {
+                println!("State: Green for {} seconds", duration)
             }
-            (TrafficLightState::OperableRed(_), TrafficLightEvent::NextState) => {
-                self.state = TrafficLightState::OperableGreen(15);
-                println!("Transition to Green");
-            }
-            (TrafficLightState::OperableGreen(_), TrafficLightEvent::NextState) => {
-                self.state = TrafficLightState::OperableYellow(3);
-                println!("Transition to Yellow");
-            }
-            (TrafficLightState::OperableYellow(_), TrafficLightEvent::NextState) => {
-                self.state = TrafficLightState::OperableRed(10);
-                println!("Transition to Red");
-            }
-            (_, TrafficLightEvent::PowerOff) => {
-                self.state = TrafficLightState::Off;
-                println!("Transition to Off");
-            }
-            _ => {
-                println!("No transition for this event in current state");
+            TrafficLightState::OperableYellow(duration) => {
+                println!("State: Yellow for {} seconds", duration)
             }
         }
     }
 }
 
 fn test_fsm() {
-    let mut fsm = TrafficLightFSM::new();
+    let mut state = TrafficLightState::Off;
 
-    fsm.handle_event(TrafficLightEvent::PowerOn);
-    fsm.handle_event(TrafficLightEvent::InitDone);
-    fsm.handle_event(TrafficLightEvent::NextState);
-    fsm.handle_event(TrafficLightEvent::NextState);
-    fsm.handle_event(TrafficLightEvent::NextState);
-    fsm.handle_event(TrafficLightEvent::NextState);
-    fsm.handle_event(TrafficLightEvent::PowerOff);
+    state.on_state();
+    state = state.on_event(TrafficLightEvent::PowerOn);
+    state.on_state();
+    state = state.on_event(TrafficLightEvent::InitDone);
+    state.on_state();
+    state = state.on_event(TrafficLightEvent::NextState);
+    state.on_state();
+    state = state.on_event(TrafficLightEvent::NextState);
+    state.on_state();
+    state = state.on_event(TrafficLightEvent::NextState);
+    state.on_state();
+    state = state.on_event(TrafficLightEvent::NextState);
+    state.on_state();
+    state = state.on_event(TrafficLightEvent::PowerOff);
+    state.on_state();
 }
 
 /// The main basic test function that calls all individual tests.
