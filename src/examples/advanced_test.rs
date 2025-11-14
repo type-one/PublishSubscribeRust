@@ -620,6 +620,56 @@ impl Drop for Emitter {
     }
 }
 
+struct DataSampler {
+    data_task: DataTask<ContextWrapper, DataValue>,
+}
+
+impl DataSampler {
+    pub fn new(context: Arc<ContextWrapper>) -> Self {
+        DataSampler {
+            data_task: DataTask::new(
+                context,
+                "DataSamplerTask".to_string(),
+                Arc::new(
+                    move |ctx: Arc<ContextWrapper>, task_name: &String, data: DataValue| {
+                        println!(
+                            "{} '{}' {}",
+                            "DataSampler task".cyan(),
+                            task_name.cyan(),
+                            "is sampling data...".cyan()
+                        );
+
+                        // Data processing logic here
+
+                        // publish on data hub
+                        ctx.lock().unwrap().data_hub.publish_named(
+                            &"SensorData".to_string(),
+                            &data,
+                            "DataSampler",
+                        );
+                    },
+                ),
+            ),
+        }
+    }
+
+    pub fn start(&mut self) {
+        self.data_task.start();
+        println!("{}", "DataSampler started.".cyan());
+    }
+
+    pub fn is_started(&self) -> bool {
+        self.data_task.is_started()
+    }
+}
+
+impl Drop for DataSampler {
+    fn drop(&mut self) {
+        // Clean up resources when the DataSampler is dropped
+        println!("{}", "DataSampler stopped.".cyan());
+    }
+}
+
 /// Advanced test function for Publish/Subscribe with parsing.
 pub fn advanced_test() {
     println!(
@@ -651,17 +701,7 @@ pub fn advanced_test() {
     let mut emitter = Emitter::new(context.clone());
     let mut archiver = Archiver::new(context.clone());
     let mut classifier = Classifier::new(context.clone());
-
-    // Start components
-    classifier.start();
-    archiver.start();
-    emitter.start();
-
-    while !classifier.is_started() || !archiver.is_started() || !emitter.is_started() {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-
-    println!("{}", "All components started.".white());
+    let mut data_sampler = DataSampler::new(context.clone());
 
     // Setup subscriptions
     context
@@ -730,6 +770,22 @@ pub fn advanced_test() {
         "SpyCommandsHandler",
     );
 
+    // Start components
+    classifier.start();
+    archiver.start();
+    emitter.start();
+    data_sampler.start();
+
+    while !classifier.is_started()
+        || !archiver.is_started()
+        || !emitter.is_started()
+        || !data_sampler.is_started()
+    {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    println!("{}", "All components started.".white());
+
     // Simulate publishing commands
     println!("{}", "Publish start command...".white());
     context.lock().unwrap().commands_hub.publish_named(
@@ -780,8 +836,22 @@ pub fn advanced_test() {
 
     std::thread::sleep(std::time::Duration::from_secs(10));
 
+    for i in 0..20 {
+        println!("{}", "Sending data...".white());
+
+        data_sampler
+            .data_task
+            .submit(DataValue::Float(i as f64 * 0.5));
+        data_sampler.data_task.submit(DataValue::Int(i * 10));
+        data_sampler
+            .data_task
+            .submit(DataValue::Text(format!("Data {}", i)));
+
+        std::thread::sleep(std::time::Duration::from_secs(2));
+    }
+
     println!(
         "{}",
-        "------------------- Advanced Test Completed -------------------".white()
+        "------------------- Advanced Test Completed -------------------".white(),
     );
 }
