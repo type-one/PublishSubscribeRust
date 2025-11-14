@@ -36,6 +36,7 @@ pub struct PeriodicTask<ContextType> {
     period_ms: u64,
     context: Arc<ContextType>,
     stop_task: Arc<AtomicBool>,
+    started: Arc<AtomicBool>,
     task_handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -54,6 +55,7 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
             period_ms,
             context: context.clone(),
             stop_task: Arc::new(AtomicBool::new(false)),
+            started: Arc::new(AtomicBool::new(false)),
             task_handle: None,
         }
     }
@@ -65,9 +67,13 @@ impl<ContextType: Send + Sync + 'static> PeriodicTask<ContextType> {
         period_ms: u64,
         context: Arc<ContextType>,
         stop_task: Arc<AtomicBool>,
+        started: Arc<AtomicBool>,
     ) {
         let start_time = Instant::now();
         let mut deadline = start_time + Duration::from_millis(period_ms);
+
+        // mark the task as started
+        started.store(true, Ordering::Release);
 
         // periodic task loop
         while !stop_task.load(Ordering::Acquire) {
@@ -124,14 +130,28 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for PeriodicTask
         let task_name = self.task_name.clone();
         let period_ms = self.period_ms;
         let stop_task = self.stop_task.clone();
+        let started = self.started.clone();
 
         self.task_handle = Some(
             std::thread::Builder::new()
                 .name(task_name.clone())
                 .spawn(move || {
-                    Self::run_loop(task_function, task_name, period_ms, context, stop_task);
+                    Self::run_loop(
+                        task_function,
+                        task_name,
+                        period_ms,
+                        context,
+                        stop_task,
+                        started,
+                    );
                 })
                 .expect("Failed to spawn periodic task"),
         );
+    }
+
+    /// Checks if the periodic task has been started.
+    /// Returns true if started, false otherwise.
+    fn is_started(&self) -> bool {
+        self.started.load(Ordering::Acquire)
     }
 }

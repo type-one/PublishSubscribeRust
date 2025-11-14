@@ -24,6 +24,7 @@
 //-----------------------------------------------------------------------------//
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
 
 use crate::tools::sync_queue::SyncQueue;
@@ -40,10 +41,12 @@ use crate::tools::task_trait::TaskTrait;
 pub struct DataTask<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> {
     task_name: String,
     context: Arc<ContextType>,
-    data_sender: Sender<bool>,
+    data_sender: Option<Sender<bool>>,
     data_queue: Arc<SyncQueue<DataType>>,
     data_processing_function: Arc<DataTaskFunction<ContextType, DataType>>,
     task_handle: Option<std::thread::JoinHandle<()>>,
+    stop_signal: Arc<AtomicBool>,
+    started: Arc<AtomicBool>,
 }
 
 /// Implementation of the DataTask methods.
@@ -59,10 +62,12 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
         DataTask {
             task_name,
             context: context.clone(),
-            data_sender: std::sync::mpsc::channel().0, // dummy initialization
+            data_sender: None, // dummy initialization
             data_queue: Arc::new(SyncQueue::new()),
             data_processing_function,
             task_handle: None,
+            stop_signal: Arc::new(AtomicBool::new(false)),
+            started: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -70,16 +75,21 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
     fn run_loop(
         receiver: Receiver<bool>,
         data_queue: Arc<SyncQueue<DataType>>,
+        stop_signal: Arc<AtomicBool>,
+        started: Arc<AtomicBool>,
         context: Arc<ContextType>,
         task_name: String,
         data_processing_function: Arc<DataTaskFunction<ContextType, DataType>>,
     ) {
+        // mark the task as started
+        started.store(true, Ordering::Release);
+
         // Wait for work
         loop {
             // Wait for a signal to do work (or stop)
             let received_message = receiver.recv().unwrap_or(false);
 
-            if !received_message {
+            if !received_message || stop_signal.load(Ordering::Acquire) {
                 break; // Exit the loop if a stop signal is received or channel is closed
             }
 
@@ -94,7 +104,9 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
     pub fn submit(&self, data: DataType) {
         self.data_queue.enqueue(data);
         // Notify the data task that new data is available
-        self.data_sender.send(true).unwrap();
+        if let Some(sender) = &self.data_sender {
+            sender.send(true).unwrap();
+        }
     }
 }
 
@@ -104,11 +116,15 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> Drop
 {
     fn drop(&mut self) {
         // Stop the data task
-        self.data_sender.send(false).unwrap_or_default(); // send stop signal to data task and ignore errors
+        self.stop_signal.store(true, Ordering::Release);
 
-        // wait for the data task to finish
-        if let Some(handle) = self.task_handle.take() {
-            handle.join().unwrap();
+        if let Some(sender) = &self.data_sender {
+            sender.send(true).unwrap_or_default(); // send signal to unblock the receiver and ignore errors
+
+            // wait for the data task to finish
+            if let Some(handle) = self.task_handle.take() {
+                handle.join().unwrap();
+            }
         }
     }
 }
@@ -123,11 +139,13 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> TaskTr
         let data_queue = self.data_queue.clone();
         let context = self.context.clone();
         let data_processing_function = self.data_processing_function.clone();
+        let stop_signal = self.stop_signal.clone();
+        let started = self.started.clone();
 
         // https://kundan926.medium.com/exploring-the-basics-of-rusts-thread-concept-d8922d12e2f0
 
         let (sender, receiver) = std::sync::mpsc::channel();
-        self.data_sender = sender;
+        self.data_sender = Some(sender);
 
         self.task_handle = Some(
             std::thread::Builder::new()
@@ -136,6 +154,8 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> TaskTr
                     Self::run_loop(
                         receiver,
                         data_queue,
+                        stop_signal,
+                        started,
                         context,
                         task_name,
                         data_processing_function,
@@ -143,5 +163,11 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> TaskTr
                 })
                 .expect("Failed to spawn data task"),
         );
+    }
+
+    /// Checks if the data task has been started.
+    /// Returns true if started, false otherwise.
+    fn is_started(&self) -> bool {
+        self.started.load(Ordering::Acquire)
     }
 }

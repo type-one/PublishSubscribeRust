@@ -32,4 +32,5 @@
 /// Trait defining the basic behavior of a task.
 pub trait TaskTrait<ContextType: Send + Sync + 'static> {
     fn start(&mut self);
+    fn is_started(&self) -> bool;
 }

@@ -92,6 +92,12 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerPool<C
         // Start the worker pool (e.g., by spawning a certain number of workers)
         // default implementation does nothing as tokio spawns workers on demand
     }
+
+    /// Checks if the worker pool has been started.
+    fn is_started(&self) -> bool {
+        // For simplicity, we can assume the worker pool is always started
+        true
+    }
 }
 
 /// Implementation of the WorkerTrait for WorkerPool.

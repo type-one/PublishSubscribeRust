@@ -388,6 +388,10 @@ impl Classifier {
         self.periodic_task.start();
         println!("{}", "Classifier started.".blue());
     }
+
+    pub fn is_started(&self) -> bool {
+        self.worker_pool.lock().unwrap().is_started() && self.periodic_task.is_started()
+    }
 }
 
 /// Implementation of Drop for Classifier.
@@ -424,10 +428,7 @@ impl Archiver {
         let local_commands_observer_clone = local_commands_observer.clone();
 
         Archiver {
-            worker_task: Arc::new(Mutex::new(WorkerTask::new(
-                context.clone(),
-                "ArchiverWorkerTask".to_string(),
-            ))),
+            worker_task: local_worker_task,
             periodic_task: PeriodicTask::new(
                 context,
                 "ArchiverPeriodicTask".to_string(),
@@ -545,6 +546,10 @@ impl Archiver {
         self.periodic_task.start();
         println!("{}", "Archiver started.".green());
     }
+
+    pub fn is_started(&self) -> bool {
+        self.worker_task.lock().unwrap().is_started() && self.periodic_task.is_started()
+    }
 }
 
 /// Implementation of Drop for Archiver.
@@ -601,6 +606,10 @@ impl Emitter {
         self.periodic_task.start();
         println!("{}", "Emitter started.".purple());
     }
+
+    pub fn is_started(&self) -> bool {
+        self.periodic_task.is_started()
+    }
 }
 
 /// Implementation of Drop for Emitter.
@@ -642,6 +651,17 @@ pub fn advanced_test() {
     let mut emitter = Emitter::new(context.clone());
     let mut archiver = Archiver::new(context.clone());
     let mut classifier = Classifier::new(context.clone());
+
+    // Start components
+    classifier.start();
+    archiver.start();
+    emitter.start();
+
+    while !classifier.is_started() || !archiver.is_started() || !emitter.is_started() {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    println!("{}", "All components started.".white());
 
     // Setup subscriptions
     context
@@ -709,13 +729,6 @@ pub fn advanced_test() {
         }),
         "SpyCommandsHandler",
     );
-
-    // Start components
-    classifier.start();
-    archiver.start();
-    emitter.start();
-
-    std::thread::sleep(std::time::Duration::from_secs(5));
 
     // Simulate publishing commands
     println!("{}", "Publish start command...".white());

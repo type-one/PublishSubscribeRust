@@ -46,6 +46,7 @@ pub struct WorkerTask<ContextType: Send + Sync + 'static> {
     work_queue: Arc<SyncQueue<Arc<TaskFunction<ContextType>>>>,
     task_handle: Option<std::thread::JoinHandle<()>>,
     stop_signal: Arc<AtomicBool>,
+    started: Arc<AtomicBool>,
 }
 
 /// Implementation of the WorkerTask methods.
@@ -59,6 +60,7 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
             work_queue: Arc::new(SyncQueue::new()),
             task_handle: None,
             stop_signal: Arc::new(AtomicBool::new(false)),
+            started: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -67,27 +69,25 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
         receiver: Receiver<bool>,
         work_queue: Arc<SyncQueue<Arc<TaskFunction<ContextType>>>>,
         stop_signal: Arc<AtomicBool>,
+        started: Arc<AtomicBool>,
         context: Arc<ContextType>,
         task_name: String,
     ) {
+        started.store(true, Ordering::Release);
+
         // Wait for work
         loop {
-            println!("Worker task '{}' waiting for work...", task_name);
             // Wait for a signal to do work (or stop)
             // Channel closed, treat as stop signal
-            //let received_message = receiver.recv().unwrap_or(false);
+            let received_message = receiver.recv().unwrap_or(false);
 
-            if stop_signal.load(Ordering::Acquire) {
+            if !received_message || stop_signal.load(Ordering::Acquire) {
                 break; // Exit the loop if a stop signal is received or channel is closed
             }
-
-            std::thread::sleep(std::time::Duration::from_millis(1000)); // simulate waiting for work
 
             if work_queue.is_empty() {
                 continue; // No work to do, continue waiting
             }
-
-            println!("Worker task '{}' received work signal.", task_name);
 
             // Process all tasks in the queue
             while let Some(task_function) = work_queue.dequeue() {
@@ -100,9 +100,11 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
 /// Implementation of the Drop trait for WorkerTask.
 impl<ContextType: Send + Sync + 'static> Drop for WorkerTask<ContextType> {
     fn drop(&mut self) {
+        // Signal the worker task to stop
+        self.stop_signal.store(true, Ordering::Release);
+
         // Stop the worker task
         if let Some(sender) = &self.work_sender {
-            self.stop_signal.store(true, Ordering::Release);
             sender.send(false).unwrap_or_default(); // send stop signal to worker task and ignore errors
 
             // wait for the worker task to finish
@@ -121,6 +123,7 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerTask<C
         let work_queue = self.work_queue.clone();
         let context = self.context.clone();
         let stop_signal = self.stop_signal.clone();
+        let started = self.started.clone();
 
         // https://kundan926.medium.com/exploring-the-basics-of-rusts-thread-concept-d8922d12e2f0
 
@@ -131,10 +134,23 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerTask<C
             std::thread::Builder::new()
                 .name(task_name.clone())
                 .spawn(move || {
-                    Self::run_loop(receiver, work_queue, stop_signal, context, task_name);
+                    Self::run_loop(
+                        receiver,
+                        work_queue,
+                        stop_signal,
+                        started,
+                        context,
+                        task_name,
+                    );
                 })
                 .expect("Failed to spawn worker task"),
         );
+    }
+
+    /// Checks if the worker task has been started.
+    /// Returns true if started, false otherwise.
+    fn is_started(&self) -> bool {
+        self.started.load(Ordering::Acquire)
     }
 }
 
@@ -151,6 +167,8 @@ impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerTask
                 .unwrap()
                 .send(true)
                 .unwrap_or_else(|_| eprintln!("Failed to send work signal to worker task"));
+        } else {
+            eprintln!("Worker task not started, cannot delegate work.");
         }
     }
 }
