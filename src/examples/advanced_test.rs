@@ -39,6 +39,7 @@ use crate::tools::worker_task::WorkerTask;
 use crate::tools::worker_trait::WorkerTrait;
 
 /// Enum representing different types of data values.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum DataValue {
     Int(i32),
@@ -47,6 +48,7 @@ enum DataValue {
 }
 
 /// Enum representing different types of events.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum Event {
     VariableUpdate(String, DataValue),
@@ -563,6 +565,7 @@ impl Drop for Archiver {
 /// Struct representing the emitter.
 struct Emitter {
     periodic_task: PeriodicTask<ContextWrapper>,
+    #[allow(dead_code)]
     relative_time: Arc<Mutex<f64>>, // used via clone by internal periodic task
 }
 
