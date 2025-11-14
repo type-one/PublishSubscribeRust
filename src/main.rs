@@ -25,6 +25,7 @@
 
 use pubsub_rs::examples::advanced_test;
 use pubsub_rs::examples::basic_test;
+use pubsub_rs::examples::fsm_test;
 
 /// Main entry point for testing the synchronization tools.
 fn main() {
@@ -33,4 +34,7 @@ fn main() {
 
     // specific publish/subscribe advanced test with parsing
     advanced_test::advanced_test();
+
+    // finite state machine test
+    fsm_test::fsm_test();
 }

@@ -43,4 +43,5 @@ pub mod tools {
 pub mod examples {
     pub mod advanced_test;
     pub mod basic_test;
+    pub mod fsm_test;
 }
