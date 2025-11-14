@@ -1,17 +1,17 @@
 // possible states
 enum TrafficLightState {
     Off,
-    Operable_Initializing,
-    Operable_Red(i32),
-    Operable_Green(i32),
-    Operable_Yellow(i32),
+    OperableInitializing,
+    OperableRed(i32),
+    OperableGreen(i32),
+    OperableYellow(i32),
 }
 
 enum TrafficLightEvent {
-    Power_On,
-    Power_Off,
-    Init_Done,
-    Next_State,
+    PowerOn,
+    PowerOff,
+    InitDone,
+    NextState,
 }
 
 struct TrafficLightFSM {
@@ -27,27 +27,27 @@ impl TrafficLightFSM {
 
     fn handle_event(&mut self, event: TrafficLightEvent) {
         match (&self.state, event) {
-            (TrafficLightState::Off, TrafficLightEvent::Power_On) => {
-                self.state = TrafficLightState::Operable_Initializing;
+            (TrafficLightState::Off, TrafficLightEvent::PowerOn) => {
+                self.state = TrafficLightState::OperableInitializing;
                 println!("Transition to Initializing");
             }
-            (TrafficLightState::Operable_Initializing, TrafficLightEvent::Init_Done) => {
-                self.state = TrafficLightState::Operable_Red(10);
+            (TrafficLightState::OperableInitializing, TrafficLightEvent::InitDone) => {
+                self.state = TrafficLightState::OperableRed(10);
                 println!("Transition to Red");
             }
-            (TrafficLightState::Operable_Red(_), TrafficLightEvent::Next_State) => {
-                self.state = TrafficLightState::Operable_Green(15);
+            (TrafficLightState::OperableRed(_), TrafficLightEvent::NextState) => {
+                self.state = TrafficLightState::OperableGreen(15);
                 println!("Transition to Green");
             }
-            (TrafficLightState::Operable_Green(_), TrafficLightEvent::Next_State) => {
-                self.state = TrafficLightState::Operable_Yellow(3);
+            (TrafficLightState::OperableGreen(_), TrafficLightEvent::NextState) => {
+                self.state = TrafficLightState::OperableYellow(3);
                 println!("Transition to Yellow");
             }
-            (TrafficLightState::Operable_Yellow(_), TrafficLightEvent::Next_State) => {
-                self.state = TrafficLightState::Operable_Red(10);
+            (TrafficLightState::OperableYellow(_), TrafficLightEvent::NextState) => {
+                self.state = TrafficLightState::OperableRed(10);
                 println!("Transition to Red");
             }
-            (_, TrafficLightEvent::Power_Off) => {
+            (_, TrafficLightEvent::PowerOff) => {
                 self.state = TrafficLightState::Off;
                 println!("Transition to Off");
             }
@@ -61,13 +61,13 @@ impl TrafficLightFSM {
 fn test_fsm() {
     let mut fsm = TrafficLightFSM::new();
 
-    fsm.handle_event(TrafficLightEvent::Power_On);
-    fsm.handle_event(TrafficLightEvent::Init_Done);
-    fsm.handle_event(TrafficLightEvent::Next_State);
-    fsm.handle_event(TrafficLightEvent::Next_State);
-    fsm.handle_event(TrafficLightEvent::Next_State);
-    fsm.handle_event(TrafficLightEvent::Next_State);
-    fsm.handle_event(TrafficLightEvent::Power_Off);
+    fsm.handle_event(TrafficLightEvent::PowerOn);
+    fsm.handle_event(TrafficLightEvent::InitDone);
+    fsm.handle_event(TrafficLightEvent::NextState);
+    fsm.handle_event(TrafficLightEvent::NextState);
+    fsm.handle_event(TrafficLightEvent::NextState);
+    fsm.handle_event(TrafficLightEvent::NextState);
+    fsm.handle_event(TrafficLightEvent::PowerOff);
 }
 
 /// The main basic test function that calls all individual tests.
