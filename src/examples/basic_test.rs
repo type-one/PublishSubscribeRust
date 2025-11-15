@@ -142,8 +142,8 @@ fn test_sync_object_signal() {
         println!("Signal sent from thread.");
     });
 
-    // Wait for the signal with a timeout of 2000ms
-    sync.wait_for_signal_timeout(2000);
+    // Wait for the signal
+    sync.wait_for_signal();
     println!("Wait for signal completed.");
     println!("-----------------------------------------------");
 }
