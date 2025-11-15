@@ -1,4 +1,29 @@
-// possible states
+//-----------------------------------------------------------------------------//
+// Rust Publish/Subscribe Pattern - Spare time development for fun             //
+// (c) 2025 Laurent Lardinois https://be.linkedin.com/in/laurentlardinois      //
+//                                                                             //
+// https://github.com/type-one/PublishSubscribeRust                            //
+//                                                                             //
+// MIT License                                                                 //
+//                                                                             //
+// This software is provided 'as-is', without any express or implied           //
+// warranty.In no event will the authors be held liable for any damages        //
+// arising from the use of this software.                                      //
+//                                                                             //
+// Permission is granted to anyone to use this software for any purpose,       //
+// including commercial applications, and to alter itand redistribute it       //
+// freely, subject to the following restrictions :                             //
+//                                                                             //
+// 1. The origin of this software must not be misrepresented; you must not     //
+// claim that you wrote the original software.If you use this software         //
+// in a product, an acknowledgment in the product documentation would be       //
+// appreciated but is not required.                                            //
+// 2. Altered source versions must be plainly marked as such, and must not be  //
+// misrepresented as being the original software.                              //
+// 3. This notice may not be removed or altered from any source distribution.  //
+//-----------------------------------------------------------------------------//
+
+/// A simple finite state machine (FSM) example representing a traffic light system.
 #[derive(Clone, Copy)]
 enum TrafficLightState {
     Off,
@@ -8,13 +33,17 @@ enum TrafficLightState {
     OperableYellow(i32),
 }
 
+/// Events that trigger state transitions in the traffic light FSM.
 enum TrafficLightEvent {
     PowerOn,
     PowerOff,
     InitDone,
     NextState,
 }
+
+/// Implementation of the FSM logic for the traffic light system.
 impl TrafficLightState {
+    /// Handles the PowerOn event.
     fn power_on(&self) -> Self {
         match *self {
             TrafficLightState::Off => TrafficLightState::OperableInitializing,
@@ -22,6 +51,7 @@ impl TrafficLightState {
         }
     }
 
+    /// Handles the InitDone event.
     fn init_done(&self) -> Self {
         match *self {
             TrafficLightState::OperableInitializing => TrafficLightState::OperableRed(10),
@@ -29,6 +59,7 @@ impl TrafficLightState {
         }
     }
 
+    /// Handles the NextState event.
     fn next_state(&self) -> Self {
         match *self {
             TrafficLightState::OperableRed(_) => TrafficLightState::OperableGreen(15),
@@ -38,10 +69,12 @@ impl TrafficLightState {
         }
     }
 
+    /// Handles the PowerOff event.
     fn power_off(&self) -> Self {
         TrafficLightState::Off
     }
 
+    /// Processes an event and returns the new state.
     fn on_event(&self, event: TrafficLightEvent) -> Self {
         match event {
             TrafficLightEvent::PowerOn => self.power_on(),
@@ -51,6 +84,7 @@ impl TrafficLightState {
         }
     }
 
+    /// Prints the current state of the traffic light.
     fn on_state(&self) {
         match *self {
             TrafficLightState::Off => println!("State: Off"),
@@ -68,6 +102,7 @@ impl TrafficLightState {
     }
 }
 
+/// Test function for the traffic light FSM.
 fn test_fsm() {
     let mut state = TrafficLightState::Off;
 
@@ -88,7 +123,7 @@ fn test_fsm() {
     state.on_state();
 }
 
-/// The main basic test function that calls all individual tests.
+/// Main function to run the FSM test.
 pub fn fsm_test() {
     println!("Starting Finite State Machine test ...");
     println!("-----------------------------------------------");

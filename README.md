@@ -15,6 +15,7 @@ Goodies:
 - periodic task helper
 - worker task and worker pool helper
 - queuable commands
+- a simple FSM example based on Enum state and methods
 
 [GitHub repository](https://github.com/type-one/PublishSubscribeRust)
 
