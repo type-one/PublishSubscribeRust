@@ -12,3 +12,33 @@ num = "0.4.3"
 rand = "0.9.2"
 #tokio = "1.48.0"
 tokio = { version = "1.0", features = ["full"] }
+
+[profile.release]
+# optimize for size
+# https://github.com/johnthagen/min-sized-rust
+opt-level = "z"        # Optimize For Size
+lto = true             # Enable Link Time Optimization (LTO)
+codegen-units = 1      # Reduce Parallel Code Generation Units to Increase Optimization
+panic = "abort"        # Abort on Panic
+strip = "symbols"      # strip Symbols from Binary
+overflow-checks = true
+debug = false
+incremental = false
+rpath = false
+
+[features]
+default = []
+fsm = []
+publish_subscribe = []
+basic_tests = []
+advanced_tests = []
+all_tests = ["basic_tests", "advanced_tests", "fsm"]
+
+[lib]
+name = "pubsub_rs"
+path = "src/lib.rs"
+
+[[bin]]
+name = "example_pubsub"
+path = "src/main.rs"
+
