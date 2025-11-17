@@ -211,8 +211,7 @@ mod tests {
     }
 
     // test for Drop trait
-    #[test]
-    /*
+    /*#[test]
     fn test_drop_trait() {
         let sync_object: SyncObject = SyncObject::new(false);
         let sync_object_arc = Arc::new(sync_object);

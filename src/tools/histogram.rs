@@ -324,4 +324,41 @@ mod tests {
         assert_eq!(hist.top_count(), Some(2));
         assert_eq!(hist.top_value_with_count(), Some((&"apple".to_string(), 2)));
     }
+
+    // test for Default trait
+    #[test]
+    fn test_default_trait() {
+        let hist: Histogram<u32> = Histogram::default();
+        assert_eq!(hist.total_count(), 0);
+        assert_eq!(hist.top_value(), None);
+        assert_eq!(hist.top_count(), None);
+    }
+
+    // test average on empty histogram
+    #[test]
+    fn test_average_empty_histogram() {
+        let hist: Histogram<u32> = Histogram::new();
+        assert_eq!(hist.average(), 0.0);
+    }
+
+    // test variance on empty histogram
+    #[test]
+    fn test_variance_empty_histogram() {
+        let hist: Histogram<u32> = Histogram::new();
+        assert_eq!(hist.variance(0.0), 0.0);
+    }
+
+    // test median on empty histogram
+    #[test]
+    fn test_median_empty_histogram() {
+        let hist: Histogram<u32> = Histogram::new();
+        assert_eq!(hist.median(), 0.0);
+    }
+
+    // test gaussian density on empty histogram
+    #[test]
+    fn test_gaussian_density_empty_histogram() {
+        let hist: Histogram<u32> = Histogram::new();
+        assert_eq!(hist.gaussian_density_function(0.0, 0.0, 0.0), 0.0);
+    }
 }
