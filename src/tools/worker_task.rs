@@ -193,3 +193,117 @@ impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerTask
         }
     }
 }
+
+// Unit tests for WorkerTask.
+#[cfg(test)]
+mod tests {
+    use super::WorkerTask;
+    use crate::tools::task_function::TaskFunction;
+    use crate::tools::task_trait::TaskTrait;
+    use crate::tools::worker_trait::WorkerTrait;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn test_worker_task_delegate() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+
+        let mut worker_task = WorkerTask::new(context.clone(), "TestWorkerTask".to_string());
+        worker_task.start();
+        let task_function: Arc<TaskFunction<TestContext>> =
+            Arc::new(|ctx: Arc<TestContext>, _task_name: &String| {
+                ctx.counter.fetch_add(1, Ordering::AcqRel);
+            });
+
+        for _ in 0..5 {
+            worker_task.delegate(task_function.clone());
+        }
+
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(context.counter.load(Ordering::Acquire), 5);
+
+        worker_task.stop();
+    }
+
+    #[test]
+    fn test_worker_task_start_stop() {
+        struct TestContext {}
+        let context = Arc::new(TestContext {});
+        let mut worker_task = WorkerTask::new(context.clone(), "TestWorkerTask".to_string());
+        assert!(!worker_task.is_started());
+        worker_task.start();
+
+        // Give some time for the worker task to start
+        thread::sleep(Duration::from_millis(100));
+        assert!(worker_task.is_started());
+
+        worker_task.stop();
+        assert!(!worker_task.is_started());
+    }
+
+    // test for Drop trait
+    #[test]
+    fn test_worker_task_drop() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+
+        {
+            let mut worker_task = WorkerTask::new(context.clone(), "TestWorkerTask".to_string());
+            worker_task.start();
+            let task_function: Arc<TaskFunction<TestContext>> =
+                Arc::new(|ctx: Arc<TestContext>, _task_name: &String| {
+                    ctx.counter.fetch_add(1, Ordering::AcqRel);
+                });
+
+            for _ in 0..3 {
+                worker_task.delegate(task_function.clone());
+            }
+
+            // Give some time for the tasks to be processed
+            thread::sleep(Duration::from_millis(100));
+            assert_eq!(context.counter.load(Ordering::Acquire), 3);
+        } // worker_task goes out of scope and is dropped here
+
+        // Give some time to ensure the drop has completed
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(context.counter.load(Ordering::Acquire), 3); // counter should remain the same
+    }
+
+    // delegate without task started
+    #[test]
+    fn test_worker_task_delegate_without_start() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+
+        let mut worker_task = WorkerTask::new(context.clone(), "TestWorkerTask".to_string());
+        let task_function: Arc<TaskFunction<TestContext>> =
+            Arc::new(|ctx: Arc<TestContext>, _task_name: &String| {
+                ctx.counter.fetch_add(1, Ordering::AcqRel);
+            });
+
+        // This should print an error message to stderr but not panic
+        worker_task.delegate(task_function.clone());
+
+        // Give some time to ensure no work was processed
+        thread::sleep(Duration::from_millis(50));
+        assert_eq!(context.counter.load(Ordering::Acquire), 0); // counter should remain zero
+    }
+}
