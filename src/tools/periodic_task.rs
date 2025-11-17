@@ -154,4 +154,146 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for PeriodicTask
     fn is_started(&self) -> bool {
         self.started.load(Ordering::Acquire)
     }
+
+    /// Stops the periodic task.
+    fn stop(&mut self) {
+        // signal the task to stop
+        self.stop_task.store(true, Ordering::Release);
+
+        // wait for the task to finish
+        if let Some(handle) = self.task_handle.take() {
+            handle.join().unwrap();
+        }
+
+        self.started.store(false, Ordering::Release);
+    }
+}
+
+// Unit tests for PeriodicTask.
+#[cfg(test)]
+mod tests {
+    use super::PeriodicTask;
+    use crate::tools::task_function::TaskFunction;
+    use crate::tools::task_trait::TaskTrait;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn test_periodic_task_execution() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
+            move |context: Arc<AtomicUsize>, _task_name: &String| {
+                context.fetch_add(1, Ordering::SeqCst);
+            },
+        ));
+        let mut periodic_task = PeriodicTask::new(
+            counter_clone,
+            "test_periodic_task".to_string(),
+            task_function,
+            100, // period of 100 ms
+        );
+        periodic_task.start();
+        thread::sleep(Duration::from_millis(350));
+        periodic_task.stop();
+        assert!(counter.load(Ordering::SeqCst) >= 3);
+    }
+
+    #[test]
+    fn test_periodic_task_start() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
+            move |context: Arc<AtomicUsize>, _task_name: &String| {
+                context.fetch_add(1, Ordering::SeqCst);
+            },
+        ));
+        let mut periodic_task = PeriodicTask::new(
+            counter_clone,
+            "test_periodic_task_start".to_string(),
+            task_function,
+            100, // period of 100 ms
+        );
+        assert!(!periodic_task.is_started());
+        periodic_task.start();
+
+        // give some time for the task to start
+        thread::sleep(Duration::from_millis(50));
+        assert!(periodic_task.is_started());
+
+        periodic_task.stop();
+        assert!(!periodic_task.is_started());
+    }
+
+    // request stop before start
+    #[test]
+    fn test_periodic_task_stop_before_start() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
+            move |context: Arc<AtomicUsize>, _task_name: &String| {
+                context.fetch_add(1, Ordering::SeqCst);
+            },
+        ));
+        let mut periodic_task = PeriodicTask::new(
+            counter_clone,
+            "test_periodic_task_stop_before_start".to_string(),
+            task_function,
+            100, // period of 100 ms
+        );
+        periodic_task.stop(); // should not panic
+        assert!(!periodic_task.is_started());
+    }
+
+    // test Drop trait
+    #[test]
+    fn test_periodic_task_drop() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
+            move |context: Arc<AtomicUsize>, _task_name: &String| {
+                context.fetch_add(1, Ordering::SeqCst);
+            },
+        ));
+        {
+            let mut periodic_task = PeriodicTask::new(
+                counter_clone,
+                "test_periodic_task_drop".to_string(),
+                task_function,
+                100, // period of 100 ms
+            );
+            periodic_task.start();
+            thread::sleep(Duration::from_millis(250));
+        } // periodic_task goes out of scope here and should be dropped
+
+        // give some time for the drop to complete
+        thread::sleep(Duration::from_millis(50));
+        let count = counter.load(Ordering::SeqCst);
+        assert!(count >= 2); // at least 2 executions before drop           
+    }
+
+    // exit if stop requested after deadline wait
+    #[test]
+    fn test_periodic_task_stop_during_wait() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
+            move |context: Arc<AtomicUsize>, _task_name: &String| {
+                context.fetch_add(1, Ordering::SeqCst);
+            },
+        ));
+        let mut periodic_task = PeriodicTask::new(
+            counter_clone,
+            "test_periodic_task_stop_during_wait".to_string(),
+            task_function,
+            200, // period of 200 ms
+        );
+        periodic_task.start();
+        thread::sleep(Duration::from_millis(100));
+        periodic_task.stop();
+        let count = counter.load(Ordering::SeqCst);
+        assert!(count <= 1); // should have executed at most once  
+    }
 }

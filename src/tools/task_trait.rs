@@ -33,4 +33,5 @@
 pub trait TaskTrait<ContextType: Send + Sync + 'static> {
     fn start(&mut self);
     fn is_started(&self) -> bool;
+    fn stop(&mut self);
 }

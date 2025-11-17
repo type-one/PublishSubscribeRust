@@ -152,6 +152,24 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerTask<C
     fn is_started(&self) -> bool {
         self.started.load(Ordering::Acquire)
     }
+
+    /// Stops the worker task.
+    fn stop(&mut self) {
+        // Signal the worker task to stop
+        self.stop_signal.store(true, Ordering::Release);
+
+        // Stop the worker task
+        if let Some(sender) = &self.work_sender {
+            sender.send(false).unwrap_or_default(); // send stop signal to worker task and ignore errors
+
+            // wait for the worker task to finish
+            if let Some(handle) = self.task_handle.take() {
+                handle.join().unwrap();
+            }
+        }
+
+        self.started.store(false, Ordering::Release);
+    }
 }
 
 /// Implementation of the WorkerTrait for WorkerTask.

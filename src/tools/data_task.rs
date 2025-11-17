@@ -170,4 +170,21 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> TaskTr
     fn is_started(&self) -> bool {
         self.started.load(Ordering::Acquire)
     }
+
+    /// Stops the data task.
+    fn stop(&mut self) {
+        // Stop the data task
+        self.stop_signal.store(true, Ordering::Release);
+
+        if let Some(sender) = &self.data_sender {
+            sender.send(true).unwrap_or_default(); // send signal to unblock the receiver and ignore errors
+
+            // wait for the data task to finish
+            if let Some(handle) = self.task_handle.take() {
+                handle.join().unwrap();
+            }
+        }
+
+        self.started.store(false, Ordering::Release);
+    }
 }

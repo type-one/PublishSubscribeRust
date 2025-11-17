@@ -98,6 +98,12 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerPool<C
         // For simplicity, we can assume the worker pool is always started
         true
     }
+
+    /// Stops the worker pool.
+    fn stop(&mut self) {
+        // Stop the worker pool and clean up resources
+        // default implementation does nothing as tokio handles worker lifecycle
+    }
 }
 
 /// Implementation of the WorkerTrait for WorkerPool.
