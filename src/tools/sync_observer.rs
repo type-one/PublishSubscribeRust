@@ -162,3 +162,109 @@ impl<Topic: Eq + Hash + Clone, Evt> SubjectTrait<Topic, Evt> for Subject<Topic, 
         self.publish_named(topic, event, &self.name);
     }
 }
+
+// Unit tests for Subject.
+#[cfg(test)]
+mod tests {
+    use super::{Observer, Subject, SubjectTrait};
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Debug, PartialEq, Eq, Hash, Clone)]
+    struct TestTopic {
+        id: u32,
+    }
+    #[derive(Debug, PartialEq, Clone)]
+    struct TestEvent {
+        message: String,
+    }
+    struct TestObserver {
+        received: Arc<Mutex<Vec<(TestTopic, TestEvent, String)>>>,
+    }
+    impl Observer<TestTopic, TestEvent> for TestObserver {
+        fn inform(&self, topic: &TestTopic, event: &TestEvent, origin: &str) {
+            let mut guard = self.received.lock().unwrap();
+            guard.push((topic.clone(), event.clone(), origin.to_string()));
+        }
+    }
+
+    #[test]
+    fn test_subscribe_publish() {
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let observer = Arc::new(TestObserver {
+            received: received.clone(),
+        });
+        let mut subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        subject.subscribe(&topic, observer.clone());
+        subject.publish(&topic, &event);
+        let guard = received.lock().unwrap();
+        assert_eq!(
+            guard.as_slice(),
+            &[(topic.clone(), event.clone(), "TestSubject".to_string())]
+        );
+    }
+
+    #[test]
+    fn test_unsubscribe() {
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let observer: Arc<dyn Observer<TestTopic, TestEvent> + Send + Sync> =
+            Arc::new(TestObserver {
+                received: received.clone(),
+            });
+        let mut subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        subject.subscribe(&topic, observer.clone());
+        subject.unsubscribe(&topic, &observer);
+        subject.publish(&topic, &event);
+        let guard = received.lock().unwrap();
+        assert!(guard.is_empty());
+    }
+
+    #[test]
+    fn test_subscribe_handler_publish() {
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let handler_received = received.clone();
+        let handler = Arc::new(move |topic: &TestTopic, event: &TestEvent, origin: &str| {
+            let mut guard = handler_received.lock().unwrap();
+            guard.push((topic.clone(), event.clone(), origin.to_string()));
+        });
+        let mut subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        subject.subscribe_handler(&topic, handler.clone(), "TestHandler");
+        subject.publish(&topic, &event);
+        let guard = received.lock().unwrap();
+        assert_eq!(
+            guard.as_slice(),
+            &[(topic.clone(), event.clone(), "TestSubject".to_string())]
+        );
+    }
+
+    #[test]
+    fn test_unsubscribe_handler() {
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let handler_received = received.clone();
+        let handler = Arc::new(move |topic: &TestTopic, event: &TestEvent, origin: &str| {
+            let mut guard = handler_received.lock().unwrap();
+            guard.push((topic.clone(), event.clone(), origin.to_string()));
+        });
+        let mut subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        subject.subscribe_handler(&topic, handler.clone(), "TestHandler");
+        subject.unsubscribe_handler(&topic, "TestHandler");
+        subject.publish(&topic, &event);
+        let guard = received.lock().unwrap();
+        assert!(guard.is_empty());
+    }
+}
