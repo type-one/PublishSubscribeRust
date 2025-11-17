@@ -125,6 +125,9 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerTask<C
         let stop_signal = self.stop_signal.clone();
         let started = self.started.clone();
 
+        stop_signal.store(false, Ordering::Release);
+        started.store(false, Ordering::Release);
+
         // https://kundan926.medium.com/exploring-the-basics-of-rusts-thread-concept-d8922d12e2f0
 
         let (sender, receiver) = std::sync::mpsc::channel();

@@ -23,11 +23,11 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use std::sync::Arc;
-
 use crate::tools::task_function::TaskFunction;
 use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_trait::WorkerTrait;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // ContextType must be Send + Sync + 'static to be safely shared across threads.
 // It means that ContextType can be transferred across thread boundaries (Send),
@@ -48,13 +48,17 @@ impl<ContextType: Send + Sync + 'static> Job<ContextType> {
 /// Struct representing a worker pool.
 pub struct WorkerPool<ContextType: Send + Sync + 'static> {
     context: Arc<ContextType>,
+    started: Arc<AtomicBool>,
 }
 
 /// Implementation of the WorkerPool methods.
 impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
     /// Creates a new WorkerPool.
     pub fn new(context: Arc<ContextType>) -> Self {
-        WorkerPool { context }
+        WorkerPool {
+            context,
+            started: Arc::new(AtomicBool::new(false)),
+        }
     }
 
     /// Spawns a new worker (using tokio's own reactor pool).
@@ -91,18 +95,19 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerPool<C
     fn start(&mut self) {
         // Start the worker pool (e.g., by spawning a certain number of workers)
         // default implementation does nothing as tokio spawns workers on demand
+        self.started.store(true, Ordering::Release);
     }
 
     /// Checks if the worker pool has been started.
     fn is_started(&self) -> bool {
-        // For simplicity, we can assume the worker pool is always started
-        true
+        self.started.load(Ordering::Acquire)
     }
 
     /// Stops the worker pool.
     fn stop(&mut self) {
         // Stop the worker pool and clean up resources
         // default implementation does nothing as tokio handles worker lifecycle
+        self.started.store(false, Ordering::Release);
     }
 }
 
@@ -112,5 +117,55 @@ impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerPool
     fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>) {
         // Enqueue the task function for processing by the worker pool
         self.spawn_worker(task_function);
+    }
+}
+
+// Unit tests for WorkerPool.
+#[cfg(test)]
+mod tests {
+    use super::WorkerPool;
+    use crate::tools::task_function::TaskFunction;
+    use crate::tools::task_trait::TaskTrait;
+    use crate::tools::worker_trait::WorkerTrait;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn test_worker_pool_delegate() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+
+        let mut worker_pool = WorkerPool::new(context.clone());
+        worker_pool.start();
+        let task_function: Arc<TaskFunction<TestContext>> =
+            Arc::new(|ctx: Arc<TestContext>, _task_name: &String| {
+                ctx.counter.fetch_add(1, Ordering::AcqRel);
+            });
+
+        for _ in 0..10 {
+            worker_pool.delegate(task_function.clone());
+        }
+
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(context.counter.load(Ordering::Acquire) > 0, true);
+    }
+
+    #[test]
+    fn test_worker_pool_start_stop() {
+        struct TestContext {}
+        let context = Arc::new(TestContext {});
+        let mut worker_pool = WorkerPool::new(context.clone());
+        assert!(!worker_pool.is_started());
+        worker_pool.start();
+        assert!(worker_pool.is_started());
+        worker_pool.stop();
+        assert!(!worker_pool.is_started());
     }
 }
