@@ -132,6 +132,9 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for PeriodicTask
         let stop_task = self.stop_task.clone();
         let started = self.started.clone();
 
+        stop_task.store(false, Ordering::Release);
+        started.store(false, Ordering::Release);
+
         self.task_handle = Some(
             std::thread::Builder::new()
                 .name(task_name.clone())
@@ -295,5 +298,34 @@ mod tests {
         periodic_task.stop();
         let count = counter.load(Ordering::SeqCst);
         assert!(count <= 1); // should have executed at most once  
+    }
+
+    // test start, stop, start again
+    #[test]
+    fn test_periodic_task_restart() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        let counter_clone = counter.clone();
+        let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
+            move |context: Arc<AtomicUsize>, _task_name: &String| {
+                context.fetch_add(1, Ordering::SeqCst);
+            },
+        ));
+        let mut periodic_task = PeriodicTask::new(
+            counter_clone,
+            "test_periodic_task_restart".to_string(),
+            task_function,
+            100, // period of 100 ms
+        );
+        periodic_task.start();
+        thread::sleep(Duration::from_millis(250));
+        periodic_task.stop();
+        let count_after_first_run = counter.load(Ordering::SeqCst);
+        assert!(count_after_first_run >= 2);
+
+        periodic_task.start();
+        thread::sleep(Duration::from_millis(250));
+        periodic_task.stop();
+        let count_after_second_run = counter.load(Ordering::SeqCst);
+        assert!(count_after_second_run >= count_after_first_run + 2);
     }
 }
