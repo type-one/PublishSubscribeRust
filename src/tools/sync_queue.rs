@@ -95,3 +95,88 @@ impl<T> Default for SyncQueue<T> {
         Self::new()
     }
 }
+
+// Unit tests for SyncQueue.
+#[cfg(test)]
+mod tests {
+    use super::SyncQueue;
+    #[test]
+    fn test_enqueue_dequeue() {
+        let queue = SyncQueue::new();
+        queue.enqueue(1);
+        queue.enqueue(2);
+        assert_eq!(queue.dequeue(), Some(1));
+        assert_eq!(queue.dequeue(), Some(2));
+        assert_eq!(queue.dequeue(), None);
+    }
+
+    #[test]
+    fn test_is_empty() {
+        let queue = SyncQueue::new();
+        assert!(queue.is_empty());
+        queue.enqueue(1);
+        assert!(!queue.is_empty());
+        queue.dequeue();
+        assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn test_size() {
+        let queue = SyncQueue::new();
+        assert_eq!(queue.size(), 0);
+        queue.enqueue(1);
+        assert_eq!(queue.size(), 1);
+        queue.enqueue(2);
+        assert_eq!(queue.size(), 2);
+        queue.dequeue();
+        assert_eq!(queue.size(), 1);
+    }
+
+    #[test]
+    fn test_clear() {
+        let queue = SyncQueue::new();
+        queue.enqueue(1);
+        queue.enqueue(2);
+        queue.clear();
+        assert!(queue.is_empty());
+    }
+
+    #[test]
+    fn test_front_back() {
+        let queue = SyncQueue::new();
+        queue.enqueue(1);
+        queue.enqueue(2);
+        assert_eq!(queue.front(), Some(1));
+        assert_eq!(queue.back(), Some(2));
+    }
+
+    // Additional tests with two threads
+    use std::sync::Arc;
+    use std::thread;
+    #[test]
+    fn test_concurrent_access() {
+        let queue = Arc::new(SyncQueue::new());
+        let queue_for_producer = queue.clone();
+        let queue_for_consumer = queue.clone();
+
+        let producer = thread::spawn(move || {
+            for i in 0..100 {
+                queue_for_producer.enqueue(i);
+            }
+        });
+
+        let consumer = thread::spawn(move || {
+            let mut count = 0;
+            while count < 100 {
+                if queue_for_consumer.dequeue().is_some() {
+                    count += 1;
+                }
+            }
+        });
+
+        producer.join().unwrap();
+        consumer.join().unwrap();
+
+        assert!(queue.is_empty());
+    }
+}
