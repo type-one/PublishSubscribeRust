@@ -102,6 +102,10 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
 
     /// Submits data to the data task.
     pub fn submit(&self, data: DataType) {
+        if !self.is_started() {
+            return; // ignore submissions if the task is not started
+        }
+
         self.data_queue.enqueue(data);
         // Notify the data task that new data is available
         if let Some(sender) = &self.data_sender {
@@ -189,5 +193,160 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> TaskTr
         }
 
         self.started.store(false, Ordering::Release);
+    }
+}
+
+// Unit tests for DataTask.
+#[cfg(test)]
+mod tests {
+    use super::DataTask;
+    use crate::tools::task_trait::TaskTrait;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn test_data_task_submit() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+
+        let data_processing_function: Arc<
+            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
+        > = Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+            ctx.counter.fetch_add(data, Ordering::AcqRel);
+        });
+
+        let mut data_task = DataTask::new(
+            context.clone(),
+            "TestDataTask".to_string(),
+            data_processing_function,
+        );
+
+        data_task.start();
+
+        // give some time to ensure the task has started
+        thread::sleep(Duration::from_millis(100));
+
+        for i in 1..=5 {
+            data_task.submit(i);
+        }
+
+        // Give some time for all data to be processed
+        thread::sleep(Duration::from_millis(500));
+
+        assert_eq!(context.counter.load(Ordering::Acquire), 15); // 1+2+3+4+5 = 15
+
+        data_task.stop();
+    }
+
+    #[test]
+    fn test_data_task_start_stop() {
+        struct TestContext {}
+        let context = Arc::new(TestContext {});
+
+        let data_processing_function: Arc<
+            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
+        > = Arc::new(
+            |_ctx: Arc<TestContext>, _task_name: &String, _data: usize| {
+                // Dummy processing
+            },
+        );
+
+        let mut data_task = DataTask::new(
+            context.clone(),
+            "TestDataTask".to_string(),
+            data_processing_function,
+        );
+
+        assert!(!data_task.is_started());
+        data_task.start();
+
+        // Give some time to ensure the task has started
+        thread::sleep(Duration::from_millis(100));
+        assert!(data_task.is_started());
+
+        data_task.stop();
+        assert!(!data_task.is_started());
+    }
+
+    // submit after stop should not process data
+    #[test]
+    fn test_data_task_submit_after_stop() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+
+        let data_processing_function: Arc<
+            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
+        > = Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+            ctx.counter.fetch_add(data, Ordering::AcqRel);
+        });
+
+        let mut data_task = DataTask::new(
+            context.clone(),
+            "TestDataTask".to_string(),
+            data_processing_function,
+        );
+        data_task.start();
+        data_task.stop();
+
+        for i in 1..=5 {
+            data_task.submit(i);
+        }
+
+        // Give some time to see if any data is processed
+        thread::sleep(Duration::from_millis(500));
+
+        assert_eq!(context.counter.load(Ordering::Acquire), 0); // No data should be processed
+    }
+
+    // test drop stops the task
+    #[test]
+    fn test_data_task_drop() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+
+        let data_processing_function: Arc<
+            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
+        > = Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+            ctx.counter.fetch_add(data, Ordering::AcqRel);
+        });
+
+        {
+            let mut data_task = DataTask::new(
+                context.clone(),
+                "TestDataTask".to_string(),
+                data_processing_function,
+            );
+            data_task.start();
+
+            // give some time to ensure the task has started
+            thread::sleep(Duration::from_millis(100));
+
+            for i in 1..=5 {
+                data_task.submit(i);
+            }
+
+            // Give some time for all data to be processed
+            thread::sleep(Duration::from_millis(500));
+        } // data_task goes out of scope and should be dropped here
+
+        // Give some time to ensure the task has stopped
+        thread::sleep(Duration::from_millis(100));
+
+        assert_eq!(context.counter.load(Ordering::Acquire), 15); // 1+2+3+4+5 = 15
     }
 }
