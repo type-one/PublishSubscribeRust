@@ -53,16 +53,18 @@ impl SyncObject {
     pub fn wait_for_signal(&self) {
         let mut signaled_guard = self.signaled.lock().unwrap();
 
+        *signaled_guard = self.stop.load(Ordering::Acquire);
+
         while !*signaled_guard {
             signaled_guard = self.condvar.wait(signaled_guard).unwrap();
         }
-
-        *signaled_guard = self.stop.load(Ordering::Acquire);
     }
 
     /// Waits for a signal to be received with a timeout.
     pub fn wait_for_signal_timeout(&self, timeout_ms: u64) {
         let mut signaled_guard = self.signaled.lock().unwrap();
+
+        *signaled_guard = self.stop.load(Ordering::Acquire);
 
         while !*signaled_guard {
             let (new_signaled_guard, timeout_status) = self
@@ -76,8 +78,6 @@ impl SyncObject {
                 break;
             }
         }
-
-        *signaled_guard = self.stop.load(Ordering::Acquire);
     }
 
     /// Sends a signal to wake up one of the waiting threads.
@@ -211,7 +211,8 @@ mod tests {
     }
 
     // test for Drop trait
-    /*#[test]
+    /*
+    #[test]
     fn test_drop_trait() {
         let sync_object: SyncObject = SyncObject::new(false);
         let sync_object_arc = Arc::new(sync_object);
@@ -226,6 +227,7 @@ mod tests {
         handle.join().unwrap();
     }
     */
+
     // test for Drop trait with timeout
     #[test]
     fn test_drop_trait_with_timeout() {
@@ -276,7 +278,6 @@ mod tests {
     }
 
     // test for signal_all
-    /*
     #[test]
     fn test_signal_all() {
         let sync_object = Arc::new(SyncObject::new(false));
@@ -297,5 +298,4 @@ mod tests {
             handle.join().unwrap();
         }
     }
-    */
 }
