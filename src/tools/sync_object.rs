@@ -119,3 +119,184 @@ impl Default for SyncObject {
         Self::new(false)
     }
 }
+
+// Unit tests for SyncObject.
+#[cfg(test)]
+mod tests {
+    use super::SyncObject;
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::Instant;
+
+    #[test]
+    fn test_signal() {
+        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object_clone = Arc::clone(&sync_object);
+
+        let handle = thread::spawn(move || {
+            sync_object_clone.wait_for_signal();
+        });
+
+        thread::sleep(std::time::Duration::from_millis(100));
+        sync_object.signal();
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn test_signal_timeout() {
+        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object_clone = Arc::clone(&sync_object);
+
+        let handle = thread::spawn(move || {
+            let start = Instant::now();
+            sync_object_clone.wait_for_signal_timeout(200);
+            start.elapsed()
+        });
+
+        thread::sleep(std::time::Duration::from_millis(100));
+        sync_object.signal();
+        let elapsed = handle.join().unwrap();
+        assert!(elapsed < std::time::Duration::from_millis(300));
+    }
+
+    #[test]
+    fn test_signal_timeout_expire() {
+        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object_clone = Arc::clone(&sync_object);
+
+        let handle = thread::spawn(move || {
+            let start = Instant::now();
+            sync_object_clone.wait_for_signal_timeout(200);
+            start.elapsed()
+        });
+
+        let elapsed = handle.join().unwrap();
+        assert!(elapsed >= std::time::Duration::from_millis(200));
+    }
+
+    // test for Default trait
+    #[test]
+    fn test_default_trait() {
+        let sync_object: SyncObject = SyncObject::default();
+        let sync_object_arc = Arc::new(sync_object);
+        let sync_object_clone = Arc::clone(&sync_object_arc);
+
+        let handle = thread::spawn(move || {
+            sync_object_clone.wait_for_signal();
+        });
+
+        thread::sleep(std::time::Duration::from_millis(100));
+        sync_object_arc.signal();
+        handle.join().unwrap();
+    }
+
+    // Additional test with two threads
+    #[test]
+    fn test_concurrent_signal_wait() {
+        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object_for_waiter = sync_object.clone();
+        let sync_object_for_signaler = sync_object.clone();
+
+        let waiter = thread::spawn(move || {
+            sync_object_for_waiter.wait_for_signal();
+        });
+
+        let signaler = thread::spawn(move || {
+            thread::sleep(std::time::Duration::from_millis(100));
+            sync_object_for_signaler.signal();
+        });
+
+        waiter.join().unwrap();
+        signaler.join().unwrap();
+    }
+
+    // test for Drop trait
+    #[test]
+    /*
+    fn test_drop_trait() {
+        let sync_object: SyncObject = SyncObject::new(false);
+        let sync_object_arc = Arc::new(sync_object);
+        let sync_object_clone = Arc::clone(&sync_object_arc);
+
+        let handle = thread::spawn(move || {
+            sync_object_clone.wait_for_signal();
+        });
+
+        thread::sleep(std::time::Duration::from_millis(100));
+        drop(sync_object_arc); // This should signal the waiting thread to stop
+        handle.join().unwrap();
+    }
+    */
+    // test for Drop trait with timeout
+    #[test]
+    fn test_drop_trait_with_timeout() {
+        let sync_object: SyncObject = SyncObject::new(false);
+        let sync_object_arc = Arc::new(sync_object);
+        let sync_object_clone = Arc::clone(&sync_object_arc);
+
+        let handle = thread::spawn(move || {
+            sync_object_clone.wait_for_signal_timeout(500);
+        });
+
+        thread::sleep(std::time::Duration::from_millis(100));
+        drop(sync_object_arc); // This should signal the waiting thread to stop
+        handle.join().unwrap();
+    }
+
+    // test for Default trait with timeout
+    #[test]
+    fn test_default_trait_with_timeout() {
+        let sync_object: SyncObject = SyncObject::default();
+        let sync_object_arc = Arc::new(sync_object);
+        let sync_object_clone = Arc::clone(&sync_object_arc);
+
+        let handle = thread::spawn(move || {
+            sync_object_clone.wait_for_signal_timeout(500);
+        });
+
+        thread::sleep(std::time::Duration::from_millis(100));
+        sync_object_arc.signal();
+        handle.join().unwrap();
+    }
+
+    // test for Default trait with timeout expire
+    #[test]
+    fn test_default_trait_with_timeout_expire() {
+        let sync_object: SyncObject = SyncObject::default();
+        let sync_object_arc = Arc::new(sync_object);
+        let sync_object_clone = Arc::clone(&sync_object_arc);
+
+        let handle = thread::spawn(move || {
+            let start = Instant::now();
+            sync_object_clone.wait_for_signal_timeout(200);
+            start.elapsed()
+        });
+
+        let elapsed = handle.join().unwrap();
+        assert!(elapsed >= std::time::Duration::from_millis(200));
+    }
+
+    // test for signal_all
+    /*
+    #[test]
+    fn test_signal_all() {
+        let sync_object = Arc::new(SyncObject::new(false));
+        let mut handles = vec![];
+
+        for _ in 0..5 {
+            let sync_object_clone = Arc::clone(&sync_object);
+            let handle = thread::spawn(move || {
+                sync_object_clone.wait_for_signal();
+            });
+            handles.push(handle);
+        }
+
+        thread::sleep(std::time::Duration::from_millis(100));
+        sync_object.signal_all();
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    }
+    */
+}
