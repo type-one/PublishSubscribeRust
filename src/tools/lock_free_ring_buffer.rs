@@ -138,3 +138,75 @@ impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> Default
         Self::new()
     }
 }
+
+// Unit tests for LockFreeRingBuffer.
+#[cfg(test)]
+mod tests {
+    use super::LockFreeRingBuffer;
+    #[test]
+    fn test_enqueue_dequeue() {
+        let ring_buffer: LockFreeRingBuffer<u32, 3> = LockFreeRingBuffer::new(); // Capacity 8
+        assert_eq!(ring_buffer.enqueue(1), Ok(()));
+        assert_eq!(ring_buffer.enqueue(2), Ok(()));
+        assert_eq!(ring_buffer.dequeue(), Some(1));
+        assert_eq!(ring_buffer.dequeue(), Some(2));
+        assert_eq!(ring_buffer.dequeue(), None);
+    }
+    #[test]
+    fn test_full_buffer() {
+        let ring_buffer: LockFreeRingBuffer<u32, 2> = LockFreeRingBuffer::new(); // Capacity 4
+        assert_eq!(ring_buffer.enqueue(1), Ok(()));
+        assert_eq!(ring_buffer.enqueue(2), Ok(()));
+        assert_eq!(ring_buffer.enqueue(3), Ok(()));
+        assert_eq!(ring_buffer.enqueue(4), Err("Buffer is full"));
+    }
+    #[test]
+    fn test_empty_buffer() {
+        let ring_buffer: LockFreeRingBuffer<u32, 2> = LockFreeRingBuffer::new(); // Capacity 4
+        assert_eq!(ring_buffer.dequeue(), None);
+    }
+
+    #[test]
+    fn test_capacity() {
+        let ring_buffer: LockFreeRingBuffer<u32, 4> = LockFreeRingBuffer::new(); // Capacity 16
+        assert_eq!(ring_buffer.capacity(), 16);
+    }
+
+    // Additional test with two threads
+    #[test]
+    fn test_concurrent_enqueue_dequeue() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let ring_buffer: Arc<LockFreeRingBuffer<u32, 4>> = Arc::new(LockFreeRingBuffer::new()); // Capacity 16  
+        let rb_producer = ring_buffer.clone();
+        let rb_consumer = ring_buffer.clone();
+
+        let producer = thread::spawn(move || {
+            for i in 0..10 {
+                loop {
+                    if rb_producer.enqueue(i).is_ok() {
+                        break;
+                    }
+                }
+            }
+        });
+
+        let consumer = thread::spawn(move || {
+            let mut sum = 0;
+            for _ in 0..10 {
+                loop {
+                    if let Some(value) = rb_consumer.dequeue() {
+                        sum += value;
+                        break;
+                    }
+                }
+            }
+            sum
+        });
+
+        producer.join().unwrap();
+        let result = consumer.join().unwrap();
+        assert_eq!(result, 45); // Sum of numbers from 0 to 9
+    }
+}

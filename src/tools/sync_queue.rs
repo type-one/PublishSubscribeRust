@@ -150,7 +150,7 @@ mod tests {
         assert_eq!(queue.back(), Some(2));
     }
 
-    // Additional tests with two threads
+    // Additional test with two threads
     use std::sync::Arc;
     use std::thread;
     #[test]
