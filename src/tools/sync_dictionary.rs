@@ -236,4 +236,11 @@ mod tests {
         inserter.join().unwrap();
         getter.join().unwrap();
     }
+
+    // test Default trait
+    #[test]
+    fn test_default() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::default();
+        assert_eq!(dict.size(), 0);
+    }
 }

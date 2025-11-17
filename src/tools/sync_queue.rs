@@ -179,4 +179,11 @@ mod tests {
 
         assert!(queue.is_empty());
     }
+
+    // test for Default trait
+    #[test]
+    fn test_default() {
+        let queue: SyncQueue<i32> = SyncQueue::default();
+        assert_eq!(queue.size(), 0);
+    }
 }

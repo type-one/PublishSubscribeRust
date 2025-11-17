@@ -209,4 +209,11 @@ mod tests {
         let result = consumer.join().unwrap();
         assert_eq!(result, 45); // Sum of numbers from 0 to 9
     }
+
+    // test for Default trait
+    #[test]
+    fn test_default_trait() {
+        let ring_buffer: LockFreeRingBuffer<u32, 3> = LockFreeRingBuffer::default(); // Capacity 8
+        assert_eq!(ring_buffer.capacity(), 8);
+    }
 }
