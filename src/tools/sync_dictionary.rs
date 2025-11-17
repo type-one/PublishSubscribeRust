@@ -124,3 +124,116 @@ where
         Self::new()
     }
 }
+
+// Unit tests for SyncDictionary.
+#[cfg(test)]
+mod tests {
+    use super::SyncDictionary;
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn test_insert_get() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        dict.insert("key1".to_string(), 10);
+        assert_eq!(dict.get(&"key1".to_string()), Some(10));
+    }
+
+    #[test]
+    fn test_remove() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        dict.insert("key1".to_string(), 10);
+        dict.remove(&"key1".to_string());
+        assert_eq!(dict.get(&"key1".to_string()), None);
+    }
+
+    #[test]
+    fn test_contains_key() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        dict.insert("key1".to_string(), 10);
+        assert!(dict.contains_key(&"key1".to_string()));
+        assert!(!dict.contains_key(&"key2".to_string()));
+    }
+
+    #[test]
+    fn test_size_clear() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        dict.insert("key1".to_string(), 10);
+        dict.insert("key2".to_string(), 20);
+        assert_eq!(dict.size(), 2);
+        dict.clear();
+        assert_eq!(dict.size(), 0);
+    }
+
+    #[test]
+    fn test_add_btree_collection() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        let mut btree = BTreeMap::new();
+        btree.insert("key1".to_string(), 10);
+        btree.insert("key2".to_string(), 20);
+        dict.add_btree_collection(&btree);
+        assert_eq!(dict.get(&"key1".to_string()), Some(10));
+        assert_eq!(dict.get(&"key2".to_string()), Some(20));
+    }
+
+    #[test]
+    fn test_add_hash_collection() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        let mut hash_map = HashMap::new();
+        hash_map.insert("key1".to_string(), 10);
+        hash_map.insert("key2".to_string(), 20);
+        dict.add_hash_collection(&hash_map);
+        assert_eq!(dict.get(&"key1".to_string()), Some(10));
+        assert_eq!(dict.get(&"key2".to_string()), Some(20));
+    }
+
+    #[test]
+    fn test_to_btree_collection() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        dict.insert("key1".to_string(), 10);
+        dict.insert("key2".to_string(), 20);
+        let btree = dict.to_btree_collection();
+        assert_eq!(btree.get(&"key1".to_string()), Some(&10));
+        assert_eq!(btree.get(&"key2".to_string()), Some(&20));
+    }
+
+    #[test]
+    fn test_to_hash_collection() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        dict.insert("key1".to_string(), 10);
+        dict.insert("key2".to_string(), 20);
+        let hash_map = dict.to_hash_collection();
+        assert_eq!(hash_map.get(&"key1".to_string()), Some(&10));
+        assert_eq!(hash_map.get(&"key2".to_string()), Some(&20));
+    }
+
+    // Additional test with two threads
+    #[test]
+    fn test_concurrent_insert_get() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let dict: Arc<SyncDictionary<String, i32>> = Arc::new(SyncDictionary::new());
+        let dict_for_inserter = dict.clone();
+        let dict_for_getter = dict.clone();
+
+        let inserter = thread::spawn(move || {
+            for i in 0..100 {
+                dict_for_inserter.insert(format!("key{}", i), i);
+            }
+        });
+
+        let getter = thread::spawn(move || {
+            for i in 0..100 {
+                loop {
+                    if let Some(value) = dict_for_getter.get(&format!("key{}", i)) {
+                        assert_eq!(value, i);
+                        break;
+                    }
+                }
+            }
+        });
+
+        inserter.join().unwrap();
+        getter.join().unwrap();
+    }
+}
