@@ -267,4 +267,111 @@ mod tests {
         let guard = received.lock().unwrap();
         assert!(guard.is_empty());
     }
+
+    // test subscribe with multiple observers on the same topic
+    #[test]
+    fn test_multiple_observers() {
+        let received1 = Arc::new(Mutex::new(Vec::new()));
+        let observer1 = Arc::new(TestObserver {
+            received: received1.clone(),
+        });
+        let received2 = Arc::new(Mutex::new(Vec::new()));
+        let observer2 = Arc::new(TestObserver {
+            received: received2.clone(),
+        });
+        let mut subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        subject.subscribe(&topic, observer1.clone());
+        subject.subscribe(&topic, observer2.clone());
+        subject.publish(&topic, &event);
+        let guard1 = received1.lock().unwrap();
+        let guard2 = received2.lock().unwrap();
+        assert_eq!(
+            guard1.as_slice(),
+            &[(topic.clone(), event.clone(), "TestSubject".to_string())]
+        );
+        assert_eq!(
+            guard2.as_slice(),
+            &[(topic.clone(), event.clone(), "TestSubject".to_string())]
+        );
+    }
+
+    // test unsubscribe only one observer when multiple are subscribed to the same topic
+    #[test]
+    fn test_unsubscribe_one_of_multiple_observers() {
+        let received1 = Arc::new(Mutex::new(Vec::new()));
+        let observer1: Arc<dyn Observer<TestTopic, TestEvent> + Send + Sync> =
+            Arc::new(TestObserver {
+                received: received1.clone(),
+            });
+        let received2 = Arc::new(Mutex::new(Vec::new()));
+        let observer2: Arc<dyn Observer<TestTopic, TestEvent> + Send + Sync> =
+            Arc::new(TestObserver {
+                received: received2.clone(),
+            });
+        let mut subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        subject.subscribe(&topic, observer1.clone());
+        subject.subscribe(&topic, observer2.clone());
+        subject.unsubscribe(&topic, &observer1);
+        subject.publish(&topic, &event);
+        let guard1 = received1.lock().unwrap();
+        let guard2 = received2.lock().unwrap();
+        assert!(guard1.is_empty());
+        assert_eq!(
+            guard2.as_slice(),
+            &[(topic.clone(), event.clone(), "TestSubject".to_string())]
+        );
+    }
+
+    // test unsubscribe handler when multiple handlers are subscribed to the same topic
+    #[test]
+    fn test_unsubscribe_one_of_multiple_handlers() {
+        let received1 = Arc::new(Mutex::new(Vec::new()));
+        let handler_received1 = received1.clone();
+        let handler1 = Arc::new(move |topic: &TestTopic, event: &TestEvent, origin: &str| {
+            let mut guard = handler_received1.lock().unwrap();
+            guard.push((topic.clone(), event.clone(), origin.to_string()));
+        });
+        let received2 = Arc::new(Mutex::new(Vec::new()));
+        let handler_received2 = received2.clone();
+        let handler2 = Arc::new(move |topic: &TestTopic, event: &TestEvent, origin: &str| {
+            let mut guard = handler_received2.lock().unwrap();
+            guard.push((topic.clone(), event.clone(), origin.to_string()));
+        });
+        let mut subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        subject.subscribe_handler(&topic, handler1.clone(), "Handler1");
+        subject.subscribe_handler(&topic, handler2.clone(), "Handler2");
+        subject.unsubscribe_handler(&topic, "Handler1");
+        subject.publish(&topic, &event);
+        let guard1 = received1.lock().unwrap();
+        let guard2 = received2.lock().unwrap();
+        assert!(guard1.is_empty());
+        assert_eq!(
+            guard2.as_slice(),
+            &[(topic.clone(), event.clone(), "TestSubject".to_string())]
+        );
+    }
+
+    // test publish to a topic with no subscribers
+    #[test]
+    fn test_publish_no_subscribers() {
+        let subject: Subject<TestTopic, TestEvent> = Subject::new("TestSubject");
+        let topic = TestTopic { id: 1 };
+        let event = TestEvent {
+            message: "Hello".to_string(),
+        };
+        // Should not panic
+        subject.publish(&topic, &event);
+    }
 }
