@@ -229,3 +229,99 @@ where
         result
     }
 }
+
+// Unit tests for the Histogram struct and its methods.
+#[cfg(test)]
+mod tests {
+    use super::Histogram;
+
+    #[test]
+    fn test_histogram_add_and_top() {
+        let mut hist = Histogram::new();
+        hist.add(1);
+        hist.add(2);
+        hist.add(1);
+
+        assert_eq!(hist.total_count(), 3);
+        assert_eq!(hist.top_value(), Some(&1));
+        assert_eq!(hist.top_count(), Some(2));
+        assert_eq!(hist.top_value_with_count(), Some((&1, 2)));
+    }
+
+    #[test]
+    fn test_histogram_average_variance_stddev_median() {
+        let mut hist = Histogram::new();
+        hist.add(1);
+        hist.add(2);
+        hist.add(3);
+        hist.add(4);
+        hist.add(5);
+
+        let average = hist.average();
+        assert!((average - 3.0).abs() < 1e-6);
+
+        let variance = hist.variance(average);
+        assert!((variance - 2.0).abs() < 1e-6);
+
+        let std_dev = hist.standard_deviation(variance);
+        assert!((std_dev - (2.0f64).sqrt()).abs() < 1e-6);
+
+        let median = hist.median();
+        assert!((median - 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_histogram_clear() {
+        let mut hist = Histogram::new();
+        hist.add(1);
+        hist.add(2);
+        hist.clear();
+
+        assert_eq!(hist.total_count(), 0);
+        assert_eq!(hist.top_value(), None);
+        assert_eq!(hist.top_count(), None);
+    }
+
+    #[test]
+    fn test_gaussian_density_function_and_gaussian_probability_between() {
+        let mut hist: Histogram<i32> = Histogram::new();
+
+        // generate a gaussian distribution in histogram
+        const COUNT: usize = 10000;
+        let mean = 10.0;
+        let std_dev = 2.0;
+
+        for _ in 0..COUNT {
+            // Box-Muller transform using rand::random() to avoid the `gen` keyword conflict
+            let u1: f64 = rand::random();
+            let u2: f64 = rand::random();
+            let z0 = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+            let sample = (z0 * std_dev + mean).round() as i32;
+
+            hist.add(sample);
+        }
+
+        let density = hist.gaussian_density_function(0.0, 10.0, 2.0);
+        let expected_density = (1.0 / (2.0 * (2.0 * std::f64::consts::PI).sqrt()))
+            * (-((0.0 - 10.0) as f64).powi(2) / (2.0_f64 * 2.0_f64.powi(2))).exp();
+        assert!((density - expected_density).abs() < 1e-6);
+
+        let probability = hist.gaussian_probability_between(-1.0, 1.0, 0.0, 1.0, 10000);
+        // The probability of being within one standard deviation in a normal distribution is about 68.27%
+        assert!((probability - 0.6827).abs() < 0.05); // Allow some margin of error
+    }
+
+    // test string histogram
+    #[test]
+    fn test_string_histogram() {
+        let mut hist = Histogram::new();
+        hist.add("apple".to_string());
+        hist.add("banana".to_string());
+        hist.add("apple".to_string());
+
+        assert_eq!(hist.total_count(), 3);
+        assert_eq!(hist.top_value(), Some(&"apple".to_string()));
+        assert_eq!(hist.top_count(), Some(2));
+        assert_eq!(hist.top_value_with_count(), Some((&"apple".to_string(), 2)));
+    }
+}

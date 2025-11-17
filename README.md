@@ -39,6 +39,20 @@ cargo build
 cargo run
 ```
 
+To run unit tests:
+
+```bash
+cargo test
+```
+
+To check unit tests coverage of the helper tools:
+
+```bash
+cargo tarpaulin --lib --exclude-files *_test.rs
+```
+
+See more at [tarpaulin](https://github.com/xd009642/tarpaulin)
+
 ## Author
 
 Laurent Lardinois / Type One (TFL-TDV)
