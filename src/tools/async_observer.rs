@@ -114,3 +114,108 @@ impl<Topic: Send + Sync + Clone + 'static, Evt: Send + Sync + Clone + 'static> O
         self.wakeable_sync_object.signal();
     }
 }
+
+// Unit tests for AsyncObserver.
+#[cfg(test)]
+mod tests {
+    use super::AsyncObserver;
+    use crate::tools::sync_observer::Observer;
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::Duration;
+
+    #[test]
+    fn test_async_observer_inform_and_pop() {
+        let observer: AsyncObserver<String, i32> = AsyncObserver::new();
+        observer.inform(&"topic1".to_string(), &42, "origin1");
+        observer.inform(&"topic2".to_string(), &84, "origin2");
+        assert_eq!(
+            observer.pop_first_event(),
+            Some(("topic1".to_string(), 42, "origin1".to_string()))
+        );
+        assert_eq!(
+            observer.pop_last_event(),
+            Some(("topic2".to_string(), 84, "origin2".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_async_observer_wait_for_events() {
+        let observer: Arc<AsyncObserver<String, i32>> = Arc::new(AsyncObserver::new());
+        let observer_clone = observer.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(100));
+            observer_clone.inform(&"topic_wait".to_string(), &123, "origin_wait");
+        });
+        observer.wait_for_events(500);
+        assert_eq!(
+            observer.pop_first_event(),
+            Some(("topic_wait".to_string(), 123, "origin_wait".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_async_observer_number_of_events() {
+        let observer: AsyncObserver<String, i32> = AsyncObserver::new();
+        assert_eq!(observer.number_of_events(), 0);
+        observer.inform(&"topic1".to_string(), &1, "origin1");
+        observer.inform(&"topic2".to_string(), &2, "origin2");
+        assert_eq!(observer.number_of_events(), 2);
+        observer.pop_first_event();
+        assert_eq!(observer.number_of_events(), 1);
+    }
+
+    // test for Default trait
+    #[test]
+    fn test_default_trait() {
+        let observer: AsyncObserver<String, i32> = AsyncObserver::default();
+        assert_eq!(observer.number_of_events(), 0);
+    }
+
+    // Additional test with two threads
+    #[test]
+    fn test_concurrent_inform_and_pop() {
+        let observer: Arc<AsyncObserver<String, i32>> = Arc::new(AsyncObserver::new());
+        let observer_for_informer = observer.clone();
+        let observer_for_popper = observer.clone();
+        let informer = thread::spawn(move || {
+            for i in 0..100 {
+                observer_for_informer.inform(&format!("topic{}", i), &i, &format!("origin{}", i));
+            }
+        });
+        let popper = thread::spawn(move || {
+            for _ in 0..100 {
+                observer_for_popper.pop_first_event();
+            }
+        });
+
+        informer.join().unwrap();
+        popper.join().unwrap();
+    }
+
+    // test pop_all_events
+    #[test]
+    fn test_pop_all_events() {
+        let observer: AsyncObserver<String, i32> = AsyncObserver::new();
+        for i in 0..5 {
+            observer.inform(&format!("topic{}", i), &i, &format!("origin{}", i));
+        }
+        let all_events = observer.pop_all_events();
+        assert_eq!(all_events.len(), 5);
+        for i in 0..5 {
+            assert_eq!(
+                all_events[i],
+                (format!("topic{}", i), i as i32, format!("origin{}", i))
+            );
+        }
+    }
+
+    // test has events
+    #[test]
+    fn test_has_events() {
+        let observer: AsyncObserver<String, i32> = AsyncObserver::new();
+        assert!(!observer.has_events());
+        observer.inform(&"topic1".to_string(), &1, "origin1");
+        assert!(observer.has_events());
+    }
+}
