@@ -115,8 +115,10 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerPool<C
 impl<ContextType: Send + Sync + 'static> WorkerTrait<ContextType> for WorkerPool<ContextType> {
     /// Delegates a task function to the worker pool.
     fn delegate(&mut self, task_function: Arc<TaskFunction<ContextType>>) {
-        // Enqueue the task function for processing by the worker pool
-        self.spawn_worker(task_function);
+        if self.is_started() {
+            // Enqueue the task function for processing by the worker pool
+            self.spawn_worker(task_function);
+        }
     }
 }
 
@@ -167,5 +169,28 @@ mod tests {
         assert!(worker_pool.is_started());
         worker_pool.stop();
         assert!(!worker_pool.is_started());
+    }
+
+    // delegate after stop should not process tasks
+    #[test]
+    fn test_worker_pool_delegate_after_stop() {
+        struct TestContext {
+            counter: AtomicUsize,
+        }
+        let context = Arc::new(TestContext {
+            counter: AtomicUsize::new(0),
+        });
+        let mut worker_pool = WorkerPool::new(context.clone());
+        worker_pool.start();
+        let task_function: Arc<TaskFunction<TestContext>> =
+            Arc::new(|ctx: Arc<TestContext>, _task_name: &String| {
+                ctx.counter.fetch_add(1, Ordering::AcqRel);
+            });
+        worker_pool.stop();
+        for _ in 0..10 {
+            worker_pool.delegate(task_function.clone());
+        }
+        thread::sleep(Duration::from_millis(100));
+        assert_eq!(context.counter.load(Ordering::Acquire), 0);
     }
 }
