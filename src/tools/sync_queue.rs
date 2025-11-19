@@ -100,6 +100,8 @@ impl<T> Default for SyncQueue<T> {
 #[cfg(test)]
 mod tests {
     use super::SyncQueue;
+
+    // Basic test for enqueue and dequeue operations.
     #[test]
     fn test_enqueue_dequeue() {
         let queue = SyncQueue::new();
@@ -110,6 +112,7 @@ mod tests {
         assert_eq!(queue.dequeue(), None);
     }
 
+    // Basic test for is_empty method.
     #[test]
     fn test_is_empty() {
         let queue = SyncQueue::new();
@@ -120,6 +123,7 @@ mod tests {
         assert!(queue.is_empty());
     }
 
+    // Basic test for size method.
     #[test]
     fn test_size() {
         let queue = SyncQueue::new();
@@ -132,6 +136,7 @@ mod tests {
         assert_eq!(queue.size(), 1);
     }
 
+    // Basic test for clear method.
     #[test]
     fn test_clear() {
         let queue = SyncQueue::new();
@@ -141,6 +146,7 @@ mod tests {
         assert!(queue.is_empty());
     }
 
+    // Basic test for front and back methods.
     #[test]
     fn test_front_back() {
         let queue = SyncQueue::new();

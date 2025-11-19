@@ -183,6 +183,7 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    // basic test for periodic task execution
     #[test]
     fn test_periodic_task_execution() {
         let counter = Arc::new(AtomicUsize::new(0));
@@ -204,6 +205,7 @@ mod tests {
         assert!(counter.load(Ordering::SeqCst) >= 3);
     }
 
+    // test is_started method
     #[test]
     fn test_periodic_task_start() {
         let counter = Arc::new(AtomicUsize::new(0));

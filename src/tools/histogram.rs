@@ -235,6 +235,7 @@ where
 mod tests {
     use super::Histogram;
 
+    // test add and top_value, top_count, top_value_with_count
     #[test]
     fn test_histogram_add_and_top() {
         let mut hist = Histogram::new();
@@ -248,6 +249,7 @@ mod tests {
         assert_eq!(hist.top_value_with_count(), Some((&1, 2)));
     }
 
+    // test average, variance, standard deviation, and median
     #[test]
     fn test_histogram_average_variance_stddev_median() {
         let mut hist = Histogram::new();
@@ -270,6 +272,7 @@ mod tests {
         assert!((median - 3.0).abs() < 1e-6);
     }
 
+    // test clear
     #[test]
     fn test_histogram_clear() {
         let mut hist = Histogram::new();
@@ -282,6 +285,7 @@ mod tests {
         assert_eq!(hist.top_count(), None);
     }
 
+    // test gaussian density function and gaussian probability between
     #[test]
     fn test_gaussian_density_function_and_gaussian_probability_between() {
         let mut hist: Histogram<i32> = Histogram::new();

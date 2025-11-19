@@ -187,6 +187,7 @@ mod tests {
         }
     }
 
+    // basic test for subscribe and publish
     #[test]
     fn test_subscribe_publish() {
         let received = Arc::new(Mutex::new(Vec::new()));
@@ -207,6 +208,7 @@ mod tests {
         );
     }
 
+    // basic test for unsubscribe
     #[test]
     fn test_unsubscribe() {
         let received = Arc::new(Mutex::new(Vec::new()));
@@ -226,6 +228,7 @@ mod tests {
         assert!(guard.is_empty());
     }
 
+    // basic test for subscribe_handler and publish
     #[test]
     fn test_subscribe_handler_publish() {
         let received = Arc::new(Mutex::new(Vec::new()));
@@ -248,6 +251,7 @@ mod tests {
         );
     }
 
+    // basic test for unsubscribe_handler
     #[test]
     fn test_unsubscribe_handler() {
         let received = Arc::new(Mutex::new(Vec::new()));

@@ -112,6 +112,7 @@ mod tests {
     use std::thread;
     use std::time::Instant;
 
+    // basic test for signal and wait
     #[test]
     fn test_signal() {
         let sync_object = Arc::new(SyncObject::new());
@@ -126,6 +127,7 @@ mod tests {
         handle.join().unwrap();
     }
 
+    // basic test for signal with timeout
     #[test]
     fn test_signal_timeout() {
         let sync_object = Arc::new(SyncObject::new());
@@ -143,6 +145,7 @@ mod tests {
         assert!(elapsed < std::time::Duration::from_millis(300));
     }
 
+    // test for signal timeout expire
     #[test]
     fn test_signal_timeout_expire() {
         let sync_object = Arc::new(SyncObject::new());

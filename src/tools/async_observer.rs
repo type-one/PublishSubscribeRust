@@ -130,6 +130,7 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    // basic test for inform and pop
     #[test]
     fn test_async_observer_inform_and_pop() {
         let observer: AsyncObserver<String, i32> = AsyncObserver::new();
@@ -145,6 +146,7 @@ mod tests {
         );
     }
 
+    // basic test for wait_for_events
     #[test]
     fn test_async_observer_wait_for_events() {
         let observer: Arc<AsyncObserver<String, i32>> = Arc::new(AsyncObserver::new());
@@ -160,6 +162,7 @@ mod tests {
         );
     }
 
+    // test for inform from multiple threads
     #[test]
     fn test_async_observer_number_of_events() {
         let observer: AsyncObserver<String, i32> = AsyncObserver::new();

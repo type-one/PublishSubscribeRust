@@ -143,6 +143,8 @@ impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> Default
 #[cfg(test)]
 mod tests {
     use super::LockFreeRingBuffer;
+
+    // basic test for enqueue and dequeue
     #[test]
     fn test_enqueue_dequeue() {
         let ring_buffer: LockFreeRingBuffer<u32, 3> = LockFreeRingBuffer::new(); // Capacity 8
@@ -152,6 +154,8 @@ mod tests {
         assert_eq!(ring_buffer.dequeue(), Some(2));
         assert_eq!(ring_buffer.dequeue(), None);
     }
+
+    // test for wrap around
     #[test]
     fn test_full_buffer() {
         let ring_buffer: LockFreeRingBuffer<u32, 2> = LockFreeRingBuffer::new(); // Capacity 4
@@ -160,12 +164,15 @@ mod tests {
         assert_eq!(ring_buffer.enqueue(3), Ok(()));
         assert_eq!(ring_buffer.enqueue(4), Err("Buffer is full"));
     }
+
+    // test for empty buffer
     #[test]
     fn test_empty_buffer() {
         let ring_buffer: LockFreeRingBuffer<u32, 2> = LockFreeRingBuffer::new(); // Capacity 4
         assert_eq!(ring_buffer.dequeue(), None);
     }
 
+    // test for capacity
     #[test]
     fn test_capacity() {
         let ring_buffer: LockFreeRingBuffer<u32, 4> = LockFreeRingBuffer::new(); // Capacity 16

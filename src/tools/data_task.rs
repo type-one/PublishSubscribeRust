@@ -206,6 +206,7 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    // basic test for data task submit and processing
     #[test]
     fn test_data_task_submit() {
         struct TestContext {
@@ -245,6 +246,7 @@ mod tests {
         data_task.stop();
     }
 
+    // test start and stop
     #[test]
     fn test_data_task_start_stop() {
         struct TestContext {}

@@ -134,6 +134,7 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    // Basic test for delegate method.
     #[test]
     fn test_worker_pool_delegate() {
         struct TestContext {
@@ -159,6 +160,7 @@ mod tests {
         assert_eq!(context.counter.load(Ordering::Acquire) > 0, true);
     }
 
+    // Basic test for start and stop methods.
     #[test]
     fn test_worker_pool_start_stop() {
         struct TestContext {}

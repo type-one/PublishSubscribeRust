@@ -131,6 +131,7 @@ mod tests {
     use super::SyncDictionary;
     use std::collections::{BTreeMap, HashMap};
 
+    // basic test for insert and get
     #[test]
     fn test_insert_get() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
@@ -138,6 +139,7 @@ mod tests {
         assert_eq!(dict.get(&"key1".to_string()), Some(10));
     }
 
+    // basic test for remove
     #[test]
     fn test_remove() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
@@ -146,6 +148,7 @@ mod tests {
         assert_eq!(dict.get(&"key1".to_string()), None);
     }
 
+    // basic test for contains_key
     #[test]
     fn test_contains_key() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
@@ -154,6 +157,7 @@ mod tests {
         assert!(!dict.contains_key(&"key2".to_string()));
     }
 
+    // basic test for size and clear
     #[test]
     fn test_size_clear() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
@@ -164,6 +168,7 @@ mod tests {
         assert_eq!(dict.size(), 0);
     }
 
+    // basic test for add_btree_collection
     #[test]
     fn test_add_btree_collection() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
@@ -175,6 +180,7 @@ mod tests {
         assert_eq!(dict.get(&"key2".to_string()), Some(20));
     }
 
+    // basic test for add_hash_collection
     #[test]
     fn test_add_hash_collection() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
@@ -186,6 +192,7 @@ mod tests {
         assert_eq!(dict.get(&"key2".to_string()), Some(20));
     }
 
+    // basic test for to_btree_collection
     #[test]
     fn test_to_btree_collection() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
@@ -196,6 +203,7 @@ mod tests {
         assert_eq!(btree.get(&"key2".to_string()), Some(&20));
     }
 
+    // basic test for to_hash_collection
     #[test]
     fn test_to_hash_collection() {
         let dict: SyncDictionary<String, i32> = SyncDictionary::new();
