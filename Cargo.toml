@@ -10,8 +10,13 @@ colored = "3.0.0"
 multimap = "0.10.1"
 num = "0.4.3"
 rand = "0.9.2"
+serde_json = "1.0.145"
 #tokio = "1.48.0"
 tokio = { version = "1.0", features = ["full"] }
+
+[build-dependencies]
+# to compile C/C++ code as a pre-build step
+cc = "1.0"
 
 [profile.release]
 # optimize for size

@@ -206,6 +206,7 @@ mod tests {
     use std::thread;
     use std::time::Duration;
 
+    // Basic test for delegate method.
     #[test]
     fn test_worker_task_delegate() {
         struct TestContext {
@@ -233,6 +234,7 @@ mod tests {
         worker_task.stop();
     }
 
+    // Basic test for start and stop methods.
     #[test]
     fn test_worker_task_start_stop() {
         struct TestContext {}

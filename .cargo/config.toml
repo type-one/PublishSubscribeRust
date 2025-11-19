@@ -1,0 +1,4 @@
+[env]
+
+# environment variables can be set here for build scripts and dependencies
+# https://medium.com/@itsuki.enjoy/rust-read-write-and-modify-toml-files-another-way-to-handle-user-set-environment-variables-27e1baf1a65f

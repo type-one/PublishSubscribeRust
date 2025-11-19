@@ -25,7 +25,9 @@
 
 use pubsub_rs::examples::advanced_test;
 use pubsub_rs::examples::basic_test;
+use pubsub_rs::examples::cjson_test;
 use pubsub_rs::examples::fsm_test;
+use pubsub_rs::examples::json_test;
 
 /// Main entry point for testing the synchronization tools.
 fn main() {
@@ -37,4 +39,10 @@ fn main() {
 
     // finite state machine test
     fsm_test::fsm_test();
+
+    // CJSON test (simple C bindings)
+    cjson_test::cjson_test();
+
+    // JSON test
+    json_test::json_test();
 }

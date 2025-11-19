@@ -23,27 +23,33 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-pub mod tools {
-    pub mod async_observer;
-    pub mod data_task;
-    pub mod histogram;
-    pub mod lock_free_ring_buffer;
-    pub mod periodic_task;
-    pub mod sync_dictionary;
-    pub mod sync_object;
-    pub mod sync_observer;
-    pub mod sync_queue;
-    pub mod task_function;
-    pub mod task_trait;
-    pub mod worker_pool;
-    pub mod worker_task;
-    pub mod worker_trait;
+// https://docs.rs/cc/latest/cc/
+
+// A simple example for testing the CJSON C library bindings in Rust.
+
+unsafe extern "C" {
+    // extern functions if needed
+    fn cJSON_Version() -> *const i8;
 }
 
-pub mod examples {
-    pub mod advanced_test;
-    pub mod basic_test;
-    pub mod cjson_test;
-    pub mod fsm_test;
-    pub mod json_test;
+/// Test function for the CJSON C library.
+fn test_cjson() {
+    unsafe {
+        let version_ptr = cJSON_Version();
+        let c_str = std::ffi::CStr::from_ptr(version_ptr);
+        let version_str = c_str.to_str().unwrap();
+        println!("CJSON Version: {}", version_str);
+    }
+}
+
+/// Main function to run the CJSON C library test.
+pub fn cjson_test() {
+    println!("Starting CJSON test ...");
+    println!("-----------------------------------------------");
+
+    // Test CJSON functionality
+    test_cjson();
+
+    println!("CJSON test completed.");
+    println!("-----------------------------------------------");
 }

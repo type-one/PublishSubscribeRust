@@ -23,27 +23,38 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-pub mod tools {
-    pub mod async_observer;
-    pub mod data_task;
-    pub mod histogram;
-    pub mod lock_free_ring_buffer;
-    pub mod periodic_task;
-    pub mod sync_dictionary;
-    pub mod sync_object;
-    pub mod sync_observer;
-    pub mod sync_queue;
-    pub mod task_function;
-    pub mod task_trait;
-    pub mod worker_pool;
-    pub mod worker_task;
-    pub mod worker_trait;
+// https://docs.rs/serde_json/latest/serde_json/
+
+// A simple example for testing the JSON Serde library in Rust.
+
+/// Test function for the JSON Serde library.
+fn test_json() {
+    // A sample JSON string
+    let data = r#"
+        {
+            "name": "Julius Caesar",
+            "age": 42,
+            "phones": [
+                "+39 6234567",
+                "+39 6345678"
+            ]
+        }"#;
+
+    // Parse the string of data into a serde_json::Value.
+    let v: serde_json::Value = serde_json::from_str(data).unwrap();
+
+    // Access parts of the data by indexing with square brackets.
+    println!("Please call {} at the number {}", v["name"], v["phones"][0]);
 }
 
-pub mod examples {
-    pub mod advanced_test;
-    pub mod basic_test;
-    pub mod cjson_test;
-    pub mod fsm_test;
-    pub mod json_test;
+/// Main function to run the JSON Serde library test.
+pub fn json_test() {
+    println!("Starting JSON test ...");
+    println!("-----------------------------------------------");
+
+    // Test JSON functionality
+    test_json();
+
+    println!("JSON test completed.");
+    println!("-----------------------------------------------");
 }
