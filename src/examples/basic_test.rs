@@ -133,12 +133,12 @@ fn test_sync_object_signal() {
     println!("-----------------------------------------------");
 
     let sync = Arc::new(SyncObject::new(false));
-    let sync_clone = sync.clone();
+    let child_sync = sync.clone();
 
     // Spawn a thread to signal after 500ms
     std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(500));
-        sync_clone.signal();
+        child_sync.signal();
         println!("Signal sent from thread.");
     });
 
@@ -630,7 +630,7 @@ fn test_async_observer_in_periodic_task() {
             // Create the observer inside an Arc so the periodic task closure can clone it
             let observer = Arc::new(AsyncObserver::new());
             // Clone the observer (shared ptr) for use in the periodic task
-            let observer_clone = observer.clone();
+            let child_observer = observer.clone();
 
             // Create the periodic task that will process events
             let task = PeriodicTask::new(
@@ -642,12 +642,12 @@ fn test_async_observer_in_periodic_task() {
                 "AsyncObserverTask".to_string(),
                 Arc::new(move |_ctx: Arc<MyContext>, _task_name: &String| {
                     // Process events directly using the captured observer clone
-                    observer_clone.wait_for_events(500);
+                    child_observer.wait_for_events(500);
 
                     // Process all available events
-                    if observer_clone.has_events() {
+                    if child_observer.has_events() {
                         // Pop and process all events
-                        let to_process = observer_clone.pop_all_events();
+                        let to_process = child_observer.pop_all_events();
 
                         // Process each event
                         for (topic, event, origin) in to_process {

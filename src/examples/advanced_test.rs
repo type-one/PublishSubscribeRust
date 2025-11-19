@@ -252,18 +252,18 @@ struct Classifier {
 /// Implementation of Classifier.
 impl Classifier {
     pub fn new(context: Arc<ContextWrapper>) -> Self {
-        let local_worker_pool = Arc::new(Mutex::new(WorkerPool::new(context.clone())));
-        let local_data_observer = Arc::new(AsyncObserver::<String, DataValue>::new());
-        let local_events_observer = Arc::new(AsyncObserver::<String, Event>::new());
-        let local_commands_observer = Arc::new(AsyncObserver::<String, Command>::new());
+        let parent_worker_pool = Arc::new(Mutex::new(WorkerPool::new(context.clone())));
+        let parent_data_observer = Arc::new(AsyncObserver::<String, DataValue>::new());
+        let parent_events_observer = Arc::new(AsyncObserver::<String, Event>::new());
+        let parent_commands_observer = Arc::new(AsyncObserver::<String, Command>::new());
 
-        let local_worker_pool_clone = local_worker_pool.clone();
-        let local_data_observer_clone = local_data_observer.clone();
-        let local_events_observer_clone = local_events_observer.clone();
-        let local_commands_observer_clone = local_commands_observer.clone();
+        let child_worker_pool = parent_worker_pool.clone();
+        let child_data_observer = parent_data_observer.clone();
+        let child_events_observer = parent_events_observer.clone();
+        let child_commands_observer = parent_commands_observer.clone();
 
         Classifier {
-            worker_pool: local_worker_pool,
+            worker_pool: parent_worker_pool,
             periodic_task: PeriodicTask::new(
                 context,
                 "ClassifierPeriodicTask".to_string(),
@@ -277,10 +277,10 @@ impl Classifier {
 
                     // Classification logic here
 
-                    local_data_observer_clone.wait_for_events(1000);
+                    child_data_observer.wait_for_events(1000);
 
-                    if local_data_observer_clone.has_events() {
-                        let events = local_data_observer_clone.pop_all_events();
+                    if child_data_observer.has_events() {
+                        let events = child_data_observer.pop_all_events();
                         for (topic, event, origin) in events {
                             println!(
                                 "{} '{}' {} '{}' : data: {:?}",
@@ -306,8 +306,8 @@ impl Classifier {
                         }
                     }
 
-                    if local_events_observer_clone.has_events() {
-                        let events = local_events_observer_clone.pop_all_events();
+                    if child_events_observer.has_events() {
+                        let events = child_events_observer.pop_all_events();
                         for (topic, event, origin) in events {
                             println!(
                                 "{} '{}' {} '{}' : event: {:?}",
@@ -321,8 +321,8 @@ impl Classifier {
                         }
                     }
 
-                    if local_commands_observer_clone.has_events() {
-                        let events = local_commands_observer_clone.pop_all_events();
+                    if child_commands_observer.has_events() {
+                        let events = child_commands_observer.pop_all_events();
                         for (topic, command, origin) in events {
                             println!(
                                 "{} '{}' {} '{}' : command: {:?}",
@@ -334,7 +334,7 @@ impl Classifier {
                             );
 
                             // Process command in worker pool
-                            local_worker_pool_clone.lock().unwrap().delegate(Arc::new(
+                            child_worker_pool.lock().unwrap().delegate(Arc::new(
                                 move |_ctx: Arc<ContextWrapper>, task_name: &String| {
                                     println!(
                                         "{} '{}' {} '{}'",
@@ -379,9 +379,9 @@ impl Classifier {
                 }),
                 1500,
             ),
-            data_observer: local_data_observer,
-            events_observer: local_events_observer,
-            commands_observer: local_commands_observer,
+            data_observer: parent_data_observer,
+            events_observer: parent_events_observer,
+            commands_observer: parent_commands_observer,
         }
     }
 
@@ -416,21 +416,21 @@ struct Archiver {
 /// Implementation of Archiver.
 impl Archiver {
     pub fn new(context: Arc<ContextWrapper>) -> Self {
-        let local_worker_task = Arc::new(Mutex::new(WorkerTask::new(
+        let parent_worker_task = Arc::new(Mutex::new(WorkerTask::new(
             context.clone(),
             "ArchiverWorkerTask".to_string(),
         )));
-        let local_data_observer = Arc::new(AsyncObserver::<String, DataValue>::new());
-        let local_events_observer = Arc::new(AsyncObserver::<String, Event>::new());
-        let local_commands_observer = Arc::new(AsyncObserver::<String, Command>::new());
+        let parent_data_observer = Arc::new(AsyncObserver::<String, DataValue>::new());
+        let parent_events_observer = Arc::new(AsyncObserver::<String, Event>::new());
+        let parent_commands_observer = Arc::new(AsyncObserver::<String, Command>::new());
 
-        let local_worker_task_clone = local_worker_task.clone();
-        let local_data_observer_clone = local_data_observer.clone();
-        let local_events_observer_clone = local_events_observer.clone();
-        let local_commands_observer_clone = local_commands_observer.clone();
+        let child_worker_task = parent_worker_task.clone();
+        let child_data_observer = parent_data_observer.clone();
+        let child_events_observer = parent_events_observer.clone();
+        let child_commands_observer = parent_commands_observer.clone();
 
         Archiver {
-            worker_task: local_worker_task,
+            worker_task: parent_worker_task,
             periodic_task: PeriodicTask::new(
                 context,
                 "ArchiverPeriodicTask".to_string(),
@@ -444,10 +444,10 @@ impl Archiver {
 
                     // Archiving logic here
 
-                    local_data_observer_clone.wait_for_events(1000);
+                    child_data_observer.wait_for_events(1000);
 
-                    if local_data_observer_clone.has_events() {
-                        let events = local_data_observer_clone.pop_all_events();
+                    if child_data_observer.has_events() {
+                        let events = child_data_observer.pop_all_events();
                         for (topic, data, origin) in events {
                             println!(
                                 "{} '{}' {} '{}' : data: {:?}",
@@ -462,8 +462,8 @@ impl Archiver {
                         }
                     }
 
-                    if local_events_observer_clone.has_events() {
-                        let events = local_events_observer_clone.pop_all_events();
+                    if child_events_observer.has_events() {
+                        let events = child_events_observer.pop_all_events();
                         for (topic, event, origin) in events {
                             println!(
                                 "{} '{}' {} '{}' : event: {:?}",
@@ -478,8 +478,8 @@ impl Archiver {
                         }
                     }
 
-                    if local_commands_observer_clone.has_events() {
-                        let events = local_commands_observer_clone.pop_all_events();
+                    if child_commands_observer.has_events() {
+                        let events = child_commands_observer.pop_all_events();
                         for (topic, command, origin) in events {
                             println!(
                                 "{} '{}' {} '{}' : command: {:?}",
@@ -491,7 +491,7 @@ impl Archiver {
                             );
 
                             // Process command in worker task
-                            local_worker_task_clone.lock().unwrap().delegate(Arc::new(
+                            child_worker_task.lock().unwrap().delegate(Arc::new(
                                 move |_ctx: Arc<ContextWrapper>, task_name: &String| {
                                     println!(
                                         "{} '{}' {} '{}'",
@@ -536,9 +536,9 @@ impl Archiver {
                 }),
                 2000,
             ),
-            data_observer: local_data_observer,
-            events_observer: local_events_observer,
-            commands_observer: local_commands_observer,
+            data_observer: parent_data_observer,
+            events_observer: parent_events_observer,
+            commands_observer: parent_commands_observer,
         }
     }
 
@@ -572,8 +572,8 @@ struct Emitter {
 /// Implementation of Emitter.
 impl Emitter {
     pub fn new(context: Arc<ContextWrapper>) -> Self {
-        let rel_time = Arc::new(Mutex::new(0.0));
-        let rel_time_clone = rel_time.clone();
+        let parent_rel_time = Arc::new(Mutex::new(0.0));
+        let child_rel_time = parent_rel_time.clone();
 
         Emitter {
             periodic_task: PeriodicTask::new(
@@ -588,7 +588,7 @@ impl Emitter {
                     );
 
                     // Emit data logic here
-                    let t = *rel_time.lock().unwrap();
+                    let t = *child_rel_time.lock().unwrap();
                     const SINE_WAVE_FREQUENCY_HZ: f64 = 1.0; // 1 Hz
                     ctx.lock().unwrap().data_hub.publish_named(
                         &"SensorData".to_string(),
@@ -597,11 +597,11 @@ impl Emitter {
                         )),
                         "Emitter",
                     );
-                    *rel_time.lock().unwrap() += 1.0; // assuming period is 1000 ms
+                    *child_rel_time.lock().unwrap() += 1.0; // assuming period is 1000 ms
                 }),
                 1000,
             ),
-            relative_time: rel_time_clone,
+            relative_time: parent_rel_time,
         }
     }
 

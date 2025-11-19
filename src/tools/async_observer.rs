@@ -142,10 +142,10 @@ mod tests {
     #[test]
     fn test_async_observer_wait_for_events() {
         let observer: Arc<AsyncObserver<String, i32>> = Arc::new(AsyncObserver::new());
-        let observer_clone = observer.clone();
+        let child_observer = observer.clone();
         thread::spawn(move || {
             thread::sleep(Duration::from_millis(100));
-            observer_clone.inform(&"topic_wait".to_string(), &123, "origin_wait");
+            child_observer.inform(&"topic_wait".to_string(), &123, "origin_wait");
         });
         observer.wait_for_events(500);
         assert_eq!(

@@ -186,14 +186,14 @@ mod tests {
     #[test]
     fn test_periodic_task_execution() {
         let counter = Arc::new(AtomicUsize::new(0));
-        let counter_clone = counter.clone();
+        let child_counter = counter.clone();
         let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
             move |context: Arc<AtomicUsize>, _task_name: &String| {
                 context.fetch_add(1, Ordering::SeqCst);
             },
         ));
         let mut periodic_task = PeriodicTask::new(
-            counter_clone,
+            child_counter,
             "test_periodic_task".to_string(),
             task_function,
             100, // period of 100 ms
@@ -207,14 +207,14 @@ mod tests {
     #[test]
     fn test_periodic_task_start() {
         let counter = Arc::new(AtomicUsize::new(0));
-        let counter_clone = counter.clone();
+        let child_counter = counter.clone();
         let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
             move |context: Arc<AtomicUsize>, _task_name: &String| {
                 context.fetch_add(1, Ordering::SeqCst);
             },
         ));
         let mut periodic_task = PeriodicTask::new(
-            counter_clone,
+            child_counter,
             "test_periodic_task_start".to_string(),
             task_function,
             100, // period of 100 ms
@@ -234,14 +234,14 @@ mod tests {
     #[test]
     fn test_periodic_task_stop_before_start() {
         let counter = Arc::new(AtomicUsize::new(0));
-        let counter_clone = counter.clone();
+        let child_counter = counter.clone();
         let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
             move |context: Arc<AtomicUsize>, _task_name: &String| {
                 context.fetch_add(1, Ordering::SeqCst);
             },
         ));
         let mut periodic_task = PeriodicTask::new(
-            counter_clone,
+            child_counter,
             "test_periodic_task_stop_before_start".to_string(),
             task_function,
             100, // period of 100 ms
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn test_periodic_task_drop() {
         let counter = Arc::new(AtomicUsize::new(0));
-        let counter_clone = counter.clone();
+        let child_counter = counter.clone();
         let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
             move |context: Arc<AtomicUsize>, _task_name: &String| {
                 context.fetch_add(1, Ordering::SeqCst);
@@ -262,7 +262,7 @@ mod tests {
         ));
         {
             let mut periodic_task = PeriodicTask::new(
-                counter_clone,
+                child_counter,
                 "test_periodic_task_drop".to_string(),
                 task_function,
                 100, // period of 100 ms
@@ -281,14 +281,14 @@ mod tests {
     #[test]
     fn test_periodic_task_stop_during_wait() {
         let counter = Arc::new(AtomicUsize::new(0));
-        let counter_clone = counter.clone();
+        let child_counter = counter.clone();
         let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
             move |context: Arc<AtomicUsize>, _task_name: &String| {
                 context.fetch_add(1, Ordering::SeqCst);
             },
         ));
         let mut periodic_task = PeriodicTask::new(
-            counter_clone,
+            child_counter,
             "test_periodic_task_stop_during_wait".to_string(),
             task_function,
             200, // period of 200 ms
@@ -304,14 +304,14 @@ mod tests {
     #[test]
     fn test_periodic_task_restart() {
         let counter = Arc::new(AtomicUsize::new(0));
-        let counter_clone = counter.clone();
+        let child_counter = counter.clone();
         let task_function: Arc<TaskFunction<AtomicUsize>> = Arc::new(Box::new(
             move |context: Arc<AtomicUsize>, _task_name: &String| {
                 context.fetch_add(1, Ordering::SeqCst);
             },
         ));
         let mut periodic_task = PeriodicTask::new(
-            counter_clone,
+            child_counter,
             "test_periodic_task_restart".to_string(),
             task_function,
             100, // period of 100 ms
