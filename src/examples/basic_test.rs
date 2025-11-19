@@ -120,7 +120,7 @@ fn test_sync_object() {
     println!("Testing SyncObject...");
     println!("-----------------------------------------------");
 
-    let sync = SyncObject::new(false);
+    let sync = SyncObject::new();
     // In a real test, you would spawn a thread to signal the object after some time.
     // Here we just demonstrate the wait_for_signal_timeout method.
     sync.wait_for_signal_timeout(1000);
@@ -132,7 +132,7 @@ fn test_sync_object_signal() {
     println!("Testing SyncObject with signal...");
     println!("-----------------------------------------------");
 
-    let sync = Arc::new(SyncObject::new(false));
+    let sync = Arc::new(SyncObject::new());
     let child_sync = sync.clone();
 
     // Spawn a thread to signal after 500ms

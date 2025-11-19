@@ -23,7 +23,6 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Condvar, Mutex};
 use std::time::Duration;
 
@@ -35,17 +34,15 @@ use std::time::Duration;
 pub struct SyncObject {
     signaled: Mutex<bool>,
     condvar: Condvar,
-    stop: AtomicBool,
 }
 
 /// Implementation of the SyncObject methods.
 impl SyncObject {
-    /// Creates a new SyncObject with the specified initial state.
-    pub fn new(initial_state: bool) -> Self {
+    /// Creates a new SyncObject.
+    pub fn new() -> Self {
         SyncObject {
-            signaled: Mutex::new(initial_state),
+            signaled: Mutex::new(false),
             condvar: Condvar::new(),
-            stop: AtomicBool::new(false),
         }
     }
 
@@ -53,7 +50,7 @@ impl SyncObject {
     pub fn wait_for_signal(&self) {
         let mut signaled_guard = self.signaled.lock().unwrap();
 
-        *signaled_guard = self.stop.load(Ordering::Acquire);
+        *signaled_guard = false;
 
         while !*signaled_guard {
             signaled_guard = self.condvar.wait(signaled_guard).unwrap();
@@ -64,7 +61,7 @@ impl SyncObject {
     pub fn wait_for_signal_timeout(&self, timeout_ms: u64) {
         let mut signaled_guard = self.signaled.lock().unwrap();
 
-        *signaled_guard = self.stop.load(Ordering::Acquire);
+        *signaled_guard = false;
 
         while !*signaled_guard {
             let (new_signaled_guard, timeout_status) = self
@@ -103,12 +100,7 @@ impl SyncObject {
 impl Drop for SyncObject {
     /// Cleans up the SyncObject by signaling all waiting threads to stop.
     fn drop(&mut self) {
-        {
-            let mut signaled_guard = self.signaled.lock().unwrap();
-            *signaled_guard = true;
-            self.stop.store(true, Ordering::Release);
-        }
-        self.condvar.notify_all();
+        self.signal_all();
     }
 }
 
@@ -116,7 +108,7 @@ impl Drop for SyncObject {
 impl Default for SyncObject {
     /// Creates a default SyncObject with an initial state of false.
     fn default() -> Self {
-        Self::new(false)
+        Self::new()
     }
 }
 
@@ -130,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_signal() {
-        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object = Arc::new(SyncObject::new());
         let child_sync_object = sync_object.clone();
 
         let handle = thread::spawn(move || {
@@ -144,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_signal_timeout() {
-        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object = Arc::new(SyncObject::new());
         let child_sync_object = sync_object.clone();
 
         let handle = thread::spawn(move || {
@@ -161,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_signal_timeout_expire() {
-        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object = Arc::new(SyncObject::new());
         let child_sync_object = sync_object.clone();
 
         let handle = thread::spawn(move || {
@@ -192,7 +184,7 @@ mod tests {
     // Additional test with two threads
     #[test]
     fn test_concurrent_signal_wait() {
-        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object = Arc::new(SyncObject::new());
         let sync_object_for_waiter = sync_object.clone();
         let sync_object_for_signaler = sync_object.clone();
 
@@ -210,10 +202,9 @@ mod tests {
     }
 
     // test for Drop trait
-    /*
     #[test]
     fn test_drop_trait() {
-        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object = Arc::new(SyncObject::new());
         let child_sync_object = sync_object.clone();
 
         let handle = thread::spawn(move || {
@@ -224,12 +215,11 @@ mod tests {
         drop(sync_object); // This should signal the waiting thread to stop
         handle.join().unwrap();
     }
-    */
 
     // test for Drop trait with timeout
     #[test]
     fn test_drop_trait_with_timeout() {
-        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object = Arc::new(SyncObject::new());
         let child_sync_object = sync_object.clone();
 
         let handle = thread::spawn(move || {
@@ -275,7 +265,7 @@ mod tests {
     // test for signal_all
     #[test]
     fn test_signal_all() {
-        let sync_object = Arc::new(SyncObject::new(false));
+        let sync_object = Arc::new(SyncObject::new());
         let mut handles = vec![];
 
         for _ in 0..5 {
