@@ -96,14 +96,6 @@ impl SyncObject {
     }
 }
 
-/// Implementation of the Drop trait for SyncObject.
-impl Drop for SyncObject {
-    /// Cleans up the SyncObject by signaling all waiting threads to stop.
-    fn drop(&mut self) {
-        self.signal_all();
-    }
-}
-
 /// Implementation of the Default trait for SyncObject.
 impl Default for SyncObject {
     /// Creates a default SyncObject with an initial state of false.
@@ -199,36 +191,6 @@ mod tests {
 
         waiter.join().unwrap();
         signaler.join().unwrap();
-    }
-
-    // test for Drop trait
-    #[test]
-    fn test_drop_trait() {
-        let sync_object = Arc::new(SyncObject::new());
-        let child_sync_object = sync_object.clone();
-
-        let handle = thread::spawn(move || {
-            child_sync_object.wait_for_signal();
-        });
-
-        thread::sleep(std::time::Duration::from_millis(100));
-        drop(sync_object); // This should signal the waiting thread to stop
-        handle.join().unwrap();
-    }
-
-    // test for Drop trait with timeout
-    #[test]
-    fn test_drop_trait_with_timeout() {
-        let sync_object = Arc::new(SyncObject::new());
-        let child_sync_object = sync_object.clone();
-
-        let handle = thread::spawn(move || {
-            child_sync_object.wait_for_signal_timeout(500);
-        });
-
-        thread::sleep(std::time::Duration::from_millis(100));
-        drop(sync_object); // This should signal the waiting thread to stop
-        handle.join().unwrap();
     }
 
     // test for Default trait with timeout

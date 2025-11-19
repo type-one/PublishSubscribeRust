@@ -102,6 +102,12 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> Default
     }
 }
 
+impl<Topic, Evt> Drop for AsyncObserver<Topic, Evt> {
+    fn drop(&mut self) {
+        self.wakeable_sync_object.signal_all();
+    }
+}
+
 /// Implementation of the SyncObserver trait for AsyncObserver.
 impl<Topic: Send + Sync + Clone + 'static, Evt: Send + Sync + Clone + 'static> Observer<Topic, Evt>
     for AsyncObserver<Topic, Evt>
@@ -217,5 +223,17 @@ mod tests {
         assert!(!observer.has_events());
         observer.inform(&"topic1".to_string(), &1, "origin1");
         assert!(observer.has_events());
+    }
+
+    // test drop with other thread waiting
+    #[test]
+    fn test_drop_with_waiting_thread() {
+        let observer: Arc<AsyncObserver<String, i32>> = Arc::new(AsyncObserver::new());
+        let observer_for_waiter = observer.clone();
+        let waiter = thread::spawn(move || {
+            observer_for_waiter.wait_for_events(1000);
+        });
+        drop(observer);
+        waiter.join().unwrap();
     }
 }
