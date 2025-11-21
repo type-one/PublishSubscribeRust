@@ -2,6 +2,7 @@
 name = "pubsub_rs"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 atomic = "0.6.1"
@@ -46,8 +47,3 @@ path = "src/lib.rs"
 [[bin]]
 name = "example_pubsub"
 path = "src/main.rs"
-
-[licenses]
-allow = ["MIT", "Apache-2.0", "BSD-3-Clause"]
-deny = ["GPL-2.0", "GPL-3.0", "LGPL-2.1", "LGPL-3.0"]
-
