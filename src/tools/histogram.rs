@@ -307,7 +307,7 @@ mod tests {
 
         let density = hist.gaussian_density_function(0.0, 10.0, 2.0);
         let expected_density = (1.0 / (2.0 * (2.0 * std::f64::consts::PI).sqrt()))
-            * (-((0.0 - 10.0) as f64).powi(2) / (2.0_f64 * 2.0_f64.powi(2))).exp();
+            * (-(0.0_f64 - 10.0).powi(2) / (2.0_f64 * 2.0_f64.powi(2))).exp();
         assert!((density - expected_density).abs() < 1e-6);
 
         let probability = hist.gaussian_probability_between(-1.0, 1.0, 0.0, 1.0, 10000);

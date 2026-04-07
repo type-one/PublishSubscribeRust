@@ -28,7 +28,9 @@ use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_trait::WorkerTrait;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use tokio::runtime::{Builder, Runtime};
+use tokio::task::JoinHandle;
 
 // ContextType must be Send + Sync + 'static to be safely shared across threads.
 // It means that ContextType can be transferred across thread boundaries (Send),
@@ -51,6 +53,7 @@ pub struct WorkerPool<ContextType: Send + Sync + 'static> {
     context: Arc<ContextType>,
     started: Arc<AtomicBool>,
     runtime: Runtime,
+    task_handles: Mutex<Vec<JoinHandle<()>>>,
 }
 
 /// Implementation of the WorkerPool methods.
@@ -64,7 +67,21 @@ impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
                 .enable_all()
                 .build()
                 .expect("Failed to build Tokio runtime for WorkerPool"),
+            task_handles: Mutex::new(Vec::new()),
         }
+    }
+
+    fn wait_for_all_workers(&self) {
+        let handles = {
+            let mut guard = self.task_handles.lock().unwrap();
+            std::mem::take(&mut *guard)
+        };
+
+        self.runtime.block_on(async move {
+            for handle in handles {
+                let _ = handle.await;
+            }
+        });
     }
 
     /// Spawns a new worker (using tokio's own reactor pool).
@@ -77,20 +94,23 @@ impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
         // https://tokio.rs/tokio/tutorial/spawning
 
         // one-way function, no need to await
-        self.runtime.spawn(async move {
+        let handle = self.runtime.spawn(async move {
             let task_name = std::thread::current()
                 .name()
                 .unwrap_or("Worker")
                 .to_string();
             job.process(&task_name);
         });
+
+        self.task_handles.lock().unwrap().push(handle);
     }
 }
 
 /// Implementation of the Drop trait for WorkerPool.
 impl<ContextType: Send + Sync + 'static> Drop for WorkerPool<ContextType> {
     fn drop(&mut self) {
-        // Clean up resources when the WorkerPool is dropped
+        self.started.store(false, Ordering::Release);
+        self.wait_for_all_workers();
     }
 }
 
@@ -110,9 +130,8 @@ impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerPool<C
 
     /// Stops the worker pool.
     fn stop(&mut self) {
-        // Stop the worker pool and clean up resources
-        // default implementation does nothing as tokio handles worker lifecycle
         self.started.store(false, Ordering::Release);
+        self.wait_for_all_workers();
     }
 }
 
@@ -161,8 +180,8 @@ mod tests {
             worker_pool.delegate(task_function.clone());
         }
 
-        thread::sleep(Duration::from_millis(100));
-        assert_eq!(context.counter.load(Ordering::Acquire) > 0, true);
+        worker_pool.stop();
+        assert!(context.counter.load(Ordering::Acquire) > 0);
     }
 
     // Basic test for start and stop methods.

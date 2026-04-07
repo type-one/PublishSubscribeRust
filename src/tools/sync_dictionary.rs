@@ -199,8 +199,8 @@ mod tests {
         dict.insert("key1".to_string(), 10);
         dict.insert("key2".to_string(), 20);
         let btree = dict.to_btree_collection();
-        assert_eq!(btree.get(&"key1".to_string()), Some(&10));
-        assert_eq!(btree.get(&"key2".to_string()), Some(&20));
+        assert_eq!(btree.get("key1"), Some(&10));
+        assert_eq!(btree.get("key2"), Some(&20));
     }
 
     // basic test for to_hash_collection
@@ -210,8 +210,8 @@ mod tests {
         dict.insert("key1".to_string(), 10);
         dict.insert("key2".to_string(), 20);
         let hash_map = dict.to_hash_collection();
-        assert_eq!(hash_map.get(&"key1".to_string()), Some(&10));
-        assert_eq!(hash_map.get(&"key2".to_string()), Some(&20));
+        assert_eq!(hash_map.get("key1"), Some(&10));
+        assert_eq!(hash_map.get("key2"), Some(&20));
     }
 
     // Additional test with two threads

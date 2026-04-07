@@ -211,9 +211,9 @@ mod tests {
         }
         let all_events = observer.pop_all_events();
         assert_eq!(all_events.len(), 5);
-        for i in 0..5 {
+        for (i, event) in all_events.iter().enumerate().take(5) {
             assert_eq!(
-                all_events[i],
+                *event,
                 (format!("topic{}", i), i as i32, format!("origin{}", i))
             );
         }

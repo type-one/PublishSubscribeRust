@@ -109,7 +109,7 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static>
         self.data_queue.enqueue(data);
         // Notify the data task that new data is available
         if let Some(sender) = &self.data_sender {
-            sender.send(true).unwrap();
+            sender.send(true).unwrap_or_default();
         }
     }
 }
@@ -204,6 +204,7 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> TaskTr
 #[cfg(test)]
 mod tests {
     use super::DataTask;
+    use crate::tools::task_function::DataTaskFunction;
     use crate::tools::task_trait::TaskTrait;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -221,11 +222,11 @@ mod tests {
             counter: AtomicUsize::new(0),
         });
 
-        let data_processing_function: Arc<
-            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
-        > = Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> = Arc::new(
+            |ctx: Arc<TestContext>, _task_name: &String, data: usize| {
             ctx.counter.fetch_add(data, Ordering::AcqRel);
-        });
+            },
+        );
 
         let mut data_task = DataTask::new(
             context.clone(),
@@ -256,9 +257,7 @@ mod tests {
         struct TestContext {}
         let context = Arc::new(TestContext {});
 
-        let data_processing_function: Arc<
-            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
-        > = Arc::new(
+        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> = Arc::new(
             |_ctx: Arc<TestContext>, _task_name: &String, _data: usize| {
                 // Dummy processing
             },
@@ -291,11 +290,11 @@ mod tests {
             counter: AtomicUsize::new(0),
         });
 
-        let data_processing_function: Arc<
-            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
-        > = Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> = Arc::new(
+            |ctx: Arc<TestContext>, _task_name: &String, data: usize| {
             ctx.counter.fetch_add(data, Ordering::AcqRel);
-        });
+            },
+        );
 
         let mut data_task = DataTask::new(
             context.clone(),
@@ -325,11 +324,11 @@ mod tests {
             counter: AtomicUsize::new(0),
         });
 
-        let data_processing_function: Arc<
-            dyn Fn(Arc<TestContext>, &String, usize) + Send + Sync + 'static,
-        > = Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> = Arc::new(
+            |ctx: Arc<TestContext>, _task_name: &String, data: usize| {
             ctx.counter.fetch_add(data, Ordering::AcqRel);
-        });
+            },
+        );
 
         {
             let mut data_task = DataTask::new(
