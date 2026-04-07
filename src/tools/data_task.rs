@@ -139,6 +139,10 @@ impl<ContextType: Send + Sync + 'static, DataType: Send + Sync + 'static> TaskTr
 {
     /// Starts the data task.
     fn start(&mut self) {
+        if self.task_handle.is_some() {
+            return;
+        }
+
         let task_name = self.task_name.clone();
         let data_queue = self.data_queue.clone();
         let context = self.context.clone();

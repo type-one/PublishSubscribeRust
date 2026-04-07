@@ -125,6 +125,10 @@ impl<ContextType> Drop for PeriodicTask<ContextType> {
 impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for PeriodicTask<ContextType> {
     /// Starts the periodic task.
     fn start(&mut self) {
+        if self.task_handle.is_some() {
+            return;
+        }
+
         let task_function = self.task_function.clone();
         let context = self.context.clone();
         let task_name = self.task_name.clone();

@@ -24,7 +24,7 @@
 //-----------------------------------------------------------------------------//
 
 use std::sync::{Condvar, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Synchronization object using standard Rust constructs.
 ///
@@ -32,8 +32,14 @@ use std::time::Duration;
 /// a synchronization mechanism using standard Rust constructs such as mutexes and
 /// condition variables.
 pub struct SyncObject {
-    signaled: Mutex<bool>,
+    state: Mutex<SyncState>,
     condvar: Condvar,
+}
+
+#[derive(Debug, Default)]
+struct SyncState {
+    tokens: usize,
+    waiters: usize,
 }
 
 /// Implementation of the SyncObject methods.
@@ -41,47 +47,71 @@ impl SyncObject {
     /// Creates a new SyncObject.
     pub fn new() -> Self {
         SyncObject {
-            signaled: Mutex::new(false),
+            state: Mutex::new(SyncState::default()),
             condvar: Condvar::new(),
         }
     }
 
     /// Waits for a signal to be received.
     pub fn wait_for_signal(&self) {
-        let mut signaled_guard = self.signaled.lock().unwrap();
+        let mut state_guard = self.state.lock().unwrap();
 
-        *signaled_guard = false;
-
-        while !*signaled_guard {
-            signaled_guard = self.condvar.wait(signaled_guard).unwrap();
+        if state_guard.tokens > 0 {
+            state_guard.tokens -= 1;
+            return;
         }
+
+        state_guard.waiters += 1;
+
+        while state_guard.tokens == 0 {
+            state_guard = self.condvar.wait(state_guard).unwrap();
+        }
+
+        state_guard.tokens -= 1;
+        state_guard.waiters -= 1;
     }
 
     /// Waits for a signal to be received with a timeout.
     pub fn wait_for_signal_timeout(&self, timeout_ms: u64) {
-        let mut signaled_guard = self.signaled.lock().unwrap();
+        let mut state_guard = self.state.lock().unwrap();
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
 
-        *signaled_guard = false;
+        if state_guard.tokens > 0 {
+            state_guard.tokens -= 1;
+            return;
+        }
 
-        while !*signaled_guard {
-            let (new_signaled_guard, timeout_status) = self
+        state_guard.waiters += 1;
+
+        while state_guard.tokens == 0 {
+            let now = Instant::now();
+            if now >= deadline {
+                state_guard.waiters -= 1;
+                return;
+            }
+
+            let (new_state_guard, timeout_status) = self
                 .condvar
-                .wait_timeout(signaled_guard, Duration::from_millis(timeout_ms))
+                .wait_timeout(state_guard, deadline.saturating_duration_since(now))
                 .unwrap();
 
-            signaled_guard = new_signaled_guard; // move
+            state_guard = new_state_guard;
 
-            if timeout_status.timed_out() {
-                break;
+            if timeout_status.timed_out() && state_guard.tokens == 0 {
+                state_guard.waiters -= 1;
+                return;
             }
         }
+
+        state_guard.tokens -= 1;
+        state_guard.waiters -= 1;
     }
 
     /// Sends a signal to wake up one of the waiting threads.
     pub fn signal(&self) {
         {
-            let mut signaled_guard = self.signaled.lock().unwrap();
-            *signaled_guard = true;
+            let mut state_guard = self.state.lock().unwrap();
+            state_guard.tokens = state_guard.tokens.saturating_add(1);
         }
         self.condvar.notify_one();
     }
@@ -89,8 +119,9 @@ impl SyncObject {
     /// Sends a signal to wake up all waiting threads.
     pub fn signal_all(&self) {
         {
-            let mut signaled_guard = self.signaled.lock().unwrap();
-            *signaled_guard = true;
+            let mut state_guard = self.state.lock().unwrap();
+            let wake_count = state_guard.waiters.max(1);
+            state_guard.tokens = state_guard.tokens.saturating_add(wake_count);
         }
         self.condvar.notify_all();
     }
@@ -225,6 +256,20 @@ mod tests {
 
         let elapsed = handle.join().unwrap();
         assert!(elapsed >= std::time::Duration::from_millis(200));
+    }
+
+    // signal before waiting should be observed immediately
+    #[test]
+    fn test_signal_before_wait_is_not_lost() {
+        let sync_object = SyncObject::new();
+
+        sync_object.signal();
+
+        let start = Instant::now();
+        sync_object.wait_for_signal_timeout(500);
+        let elapsed = start.elapsed();
+
+        assert!(elapsed < std::time::Duration::from_millis(50));
     }
 
     // test for signal_all

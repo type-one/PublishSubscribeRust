@@ -119,6 +119,10 @@ impl<ContextType: Send + Sync + 'static> Drop for WorkerTask<ContextType> {
 impl<ContextType: Send + Sync + 'static> TaskTrait<ContextType> for WorkerTask<ContextType> {
     /// Starts the worker task.
     fn start(&mut self) {
+        if self.task_handle.is_some() {
+            return;
+        }
+
         let task_name = self.task_name.clone();
         let work_queue = self.work_queue.clone();
         let context = self.context.clone();
