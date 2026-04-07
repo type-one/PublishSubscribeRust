@@ -28,6 +28,7 @@ use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_trait::WorkerTrait;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::runtime::{Builder, Runtime};
 
 // ContextType must be Send + Sync + 'static to be safely shared across threads.
 // It means that ContextType can be transferred across thread boundaries (Send),
@@ -49,6 +50,7 @@ impl<ContextType: Send + Sync + 'static> Job<ContextType> {
 pub struct WorkerPool<ContextType: Send + Sync + 'static> {
     context: Arc<ContextType>,
     started: Arc<AtomicBool>,
+    runtime: Runtime,
 }
 
 /// Implementation of the WorkerPool methods.
@@ -58,12 +60,15 @@ impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
         WorkerPool {
             context,
             started: Arc::new(AtomicBool::new(false)),
+            runtime: Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to build Tokio runtime for WorkerPool"),
         }
     }
 
     /// Spawns a new worker (using tokio's own reactor pool).
-    #[tokio::main]
-    async fn spawn_worker(&self, task_function: Arc<TaskFunction<ContextType>>) {
+    fn spawn_worker(&self, task_function: Arc<TaskFunction<ContextType>>) {
         let job = Job {
             context: self.context.clone(),
             task_function: task_function.clone(),
@@ -72,7 +77,7 @@ impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
         // https://tokio.rs/tokio/tutorial/spawning
 
         // one-way function, no need to await
-        tokio::spawn(async move {
+        self.runtime.spawn(async move {
             let task_name = std::thread::current()
                 .name()
                 .unwrap_or("Worker")
