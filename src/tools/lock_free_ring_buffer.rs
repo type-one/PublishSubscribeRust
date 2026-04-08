@@ -31,7 +31,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug)]
 struct Slot<T: Default + Copy + Send + Sync + Pod> {
+    // Per-slot generation/state marker used to disambiguate wrap-around cycles.
+    // This is what tells producers/consumers whether this slot is currently writable,
+    // readable, or still owned by another logical index.
     sequence: AtomicUsize,
+    // Payload stored for this slot.
     value: Atomic<T>,
 }
 
@@ -86,6 +90,7 @@ impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> LockFreeRingBuff
             let write_index = self.push_index.load(Ordering::Acquire);
             let slot = &self.ring_buffer[write_index & Self::RING_BUFFER_MASK];
             let sequence = slot.sequence.load(Ordering::Acquire);
+            // sequence == write_index => slot belongs to this producer turn and is writable.
             let dif = sequence as isize - write_index as isize;
 
             if dif == 0 {
@@ -100,6 +105,7 @@ impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> LockFreeRingBuff
                     .is_ok()
                 {
                     slot.value.store(item, Ordering::Relaxed);
+                    // Publish value for consumers: slot becomes readable for read_index == write_index.
                     slot.sequence
                         .store(write_index.wrapping_add(1), Ordering::Release);
                     return Ok(());
@@ -120,6 +126,7 @@ impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> LockFreeRingBuff
             let read_index = self.pop_index.load(Ordering::Acquire);
             let slot = &self.ring_buffer[read_index & Self::RING_BUFFER_MASK];
             let sequence = slot.sequence.load(Ordering::Acquire);
+            // sequence == read_index + 1 => producer published data for this consumer turn.
             let dif = sequence as isize - read_index.wrapping_add(1) as isize;
 
             if dif == 0 {
@@ -134,6 +141,7 @@ impl<T: Default + Copy + Send + Sync + Pod, const POW2N: usize> LockFreeRingBuff
                     .is_ok()
                 {
                     let item = slot.value.load(Ordering::Relaxed);
+                    // Release slot to the next producer cycle after wrapping by ring size.
                     slot.sequence.store(
                         read_index.wrapping_add(Self::RING_BUFFER_SIZE),
                         Ordering::Release,
