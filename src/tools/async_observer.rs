@@ -23,6 +23,7 @@
 // 3. This notice may not be removed or altered from any source distribution.  //
 //-----------------------------------------------------------------------------//
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use crate::tools::sync_object::SyncObject;
@@ -36,6 +37,9 @@ pub type EventEntry<Topic, Evt> = (Topic, Evt, String);
 pub struct AsyncObserver<Topic, Evt> {
     wakeable_sync_object: Arc<SyncObject>,
     event_queue: Arc<SyncQueue<EventEntry<Topic, Evt>>>,
+    // None means unbounded queue, Some(capacity) enables overflow detection.
+    queue_capacity: Option<usize>,
+    overflow_count: Arc<AtomicUsize>,
 }
 
 // Topic and Event must be Send + Sync + 'static to be safely shared across threads.
@@ -46,11 +50,24 @@ pub struct AsyncObserver<Topic, Evt> {
 
 /// Implementation of the AsyncObserver methods.
 impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Topic, Evt> {
-    /// Creates a new AsyncObserver.
+    /// Creates a new AsyncObserver with an unbounded event queue.
     pub fn new() -> Self {
         AsyncObserver {
             wakeable_sync_object: Arc::new(SyncObject::new()),
             event_queue: Arc::new(SyncQueue::new()),
+            queue_capacity: None,
+            overflow_count: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    /// Creates a new AsyncObserver with a bounded event queue. Once the queue
+    /// reaches `queue_capacity`, further events are dropped and counted as overflow.
+    pub fn with_capacity(queue_capacity: usize) -> Self {
+        AsyncObserver {
+            wakeable_sync_object: Arc::new(SyncObject::new()),
+            event_queue: Arc::new(SyncQueue::new()),
+            queue_capacity: Some(queue_capacity),
+            overflow_count: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -92,6 +109,21 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
         self.wakeable_sync_object
             .wait_for_signal_timeout(timeout_ms)
     }
+
+    /// Returns true if at least one event was dropped due to queue overflow.
+    pub fn has_queue_overflow(&self) -> bool {
+        self.overflow_count.load(Ordering::Relaxed) != 0
+    }
+
+    /// Returns the number of events dropped due to queue overflow so far.
+    pub fn queue_overflow_count(&self) -> usize {
+        self.overflow_count.load(Ordering::Relaxed)
+    }
+
+    /// Returns the number of dropped events and resets the overflow counter to zero.
+    pub fn consume_queue_overflow_count(&self) -> usize {
+        self.overflow_count.swap(0, Ordering::Relaxed)
+    }
 }
 
 impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> Default
@@ -116,8 +148,19 @@ impl<Topic: Send + Sync + Clone + 'static, Evt: Send + Sync + Clone + 'static> O
     fn inform(&self, topic: &Topic, event: &Evt, origin: &str) {
         let record = ((*topic).clone(), (*event).clone(), origin.to_string());
 
-        self.event_queue.enqueue(record);
-        self.wakeable_sync_object.signal();
+        match self.queue_capacity {
+            Some(capacity) => {
+                if self.event_queue.try_enqueue(record, capacity) {
+                    self.wakeable_sync_object.signal();
+                } else {
+                    self.overflow_count.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+            None => {
+                self.event_queue.enqueue(record);
+                self.wakeable_sync_object.signal();
+            }
+        }
     }
 }
 
@@ -226,6 +269,28 @@ mod tests {
         assert!(!observer.has_events());
         observer.inform(&"topic1".to_string(), &1, "origin1");
         assert!(observer.has_events());
+    }
+
+    // test queue overflow detection with a bounded observer
+    #[test]
+    fn test_async_observer_queue_overflow() {
+        let observer: AsyncObserver<String, String> = AsyncObserver::with_capacity(2);
+        observer.inform(&"topic".to_string(), &"event-1".to_string(), "producer");
+        observer.inform(&"topic".to_string(), &"event-2".to_string(), "producer");
+        observer.inform(
+            &"topic".to_string(),
+            &"event-3-dropped".to_string(),
+            "producer",
+        );
+
+        assert!(observer.has_queue_overflow());
+        assert_eq!(observer.queue_overflow_count(), 1);
+
+        assert_eq!(observer.consume_queue_overflow_count(), 1);
+        assert!(!observer.has_queue_overflow());
+
+        let events = observer.pop_all_events();
+        assert_eq!(events.len(), 2);
     }
 
     // test drop with other thread waiting

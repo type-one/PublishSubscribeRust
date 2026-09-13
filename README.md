@@ -16,6 +16,8 @@ Goodies:
 - worker task and worker pool helper
 - queuable commands
 - a simple FSM example based on Enum state and methods
+- bounded `AsyncObserver` queues report dropped events through `has_queue_overflow()`,
+  `queue_overflow_count()`, and `consume_queue_overflow_count()`
 
 [GitHub repository](https://github.com/type-one/PublishSubscribeRust)
 
