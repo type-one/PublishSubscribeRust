@@ -144,19 +144,22 @@ Vendor code:
 ## Concurrency and Platform Abstractions
 
 - Reuse the synchronization and task abstractions already present in
-  `src/tools/` (`SyncObject`, `SyncQueue`, `AsyncObserver`, `WorkerTask`,
-  `WorkerPool`, `PeriodicTask`) before introducing new primitives.
+  `src/tools/` (`SyncObject`, `SyncQueue`, `SyncVector`, `AsyncObserver`,
+  `WorkerTask`, `WorkerPool`, `PeriodicTask`) before introducing new
+  primitives.
 - Keep direct `std::thread`, `Mutex`, `RwLock`, and `Condvar` usage
   consistent with existing code and limited to cases where the local
   abstractions do not fit.
 - Keep asynchronous callbacks and queue operations small; do not perform
   unnecessary blocking, allocation-heavy work, or complex business logic in
   latency-sensitive paths.
-- `AsyncObserver` created via `with_capacity(n)` reports entries dropped by
-  its bounded queue through `has_queue_overflow()`, `queue_overflow_count()`,
-  and `consume_queue_overflow_count()`. Components using bounded observers
-  should poll the consumed count and publish an explicit notification when
-  dropped events matter to the application.
+- `AsyncObserver` stores events in a pluggable container: `new()` uses an
+  unbounded `SyncQueue`, `with_capacity(n)` uses a bounded, preallocated
+  `SyncVector`. Bounded observers report entries dropped once full through
+  `has_queue_overflow()`, `queue_overflow_count()`, and
+  `consume_queue_overflow_count()`. Components using bounded observers should
+  poll the consumed count and publish an explicit notification when dropped
+  events matter to the application.
 - Prefer `std::sync::atomic` with an explicit, minimal `Ordering` (usually
   `Relaxed` for simple counters) over a `Mutex<usize>` for single-value
   counters.

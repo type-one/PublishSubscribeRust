@@ -29,16 +29,57 @@ use std::sync::Arc;
 use crate::tools::sync_object::SyncObject;
 use crate::tools::sync_observer::Observer;
 use crate::tools::sync_queue::SyncQueue;
+use crate::tools::sync_vector::SyncVector;
 
 /// Type alias for an event entry.
 pub type EventEntry<Topic, Evt> = (Topic, Evt, String);
 
+/// Pluggable event storage for AsyncObserver: an unbounded `SyncQueue` that
+/// never rejects an entry, or a bounded `SyncVector` that rejects entries
+/// once full so overflow can be observed.
+enum EventContainer<T> {
+    Unbounded(SyncQueue<T>),
+    Bounded(SyncVector<T>),
+}
+
+impl<T> EventContainer<T> {
+    /// Stores an entry. Returns false when a bounded container is full.
+    fn push(&self, entry: T) -> bool {
+        match self {
+            EventContainer::Unbounded(queue) => {
+                queue.enqueue(entry);
+                true
+            }
+            EventContainer::Bounded(vector) => vector.push(entry),
+        }
+    }
+
+    fn dequeue(&self) -> Option<T> {
+        match self {
+            EventContainer::Unbounded(queue) => queue.dequeue(),
+            EventContainer::Bounded(vector) => vector.pop_front(),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        match self {
+            EventContainer::Unbounded(queue) => queue.is_empty(),
+            EventContainer::Bounded(vector) => vector.is_empty(),
+        }
+    }
+
+    fn size(&self) -> usize {
+        match self {
+            EventContainer::Unbounded(queue) => queue.size(),
+            EventContainer::Bounded(vector) => vector.size(),
+        }
+    }
+}
+
 /// Struct representing an asynchronous observer.
 pub struct AsyncObserver<Topic, Evt> {
     wakeable_sync_object: Arc<SyncObject>,
-    event_queue: Arc<SyncQueue<EventEntry<Topic, Evt>>>,
-    // None means unbounded queue, Some(capacity) enables overflow detection.
-    queue_capacity: Option<usize>,
+    event_queue: Arc<EventContainer<EventEntry<Topic, Evt>>>,
     overflow_count: Arc<AtomicUsize>,
 }
 
@@ -50,23 +91,22 @@ pub struct AsyncObserver<Topic, Evt> {
 
 /// Implementation of the AsyncObserver methods.
 impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Topic, Evt> {
-    /// Creates a new AsyncObserver with an unbounded event queue.
+    /// Creates a new AsyncObserver backed by an unbounded `SyncQueue`.
     pub fn new() -> Self {
         AsyncObserver {
             wakeable_sync_object: Arc::new(SyncObject::new()),
-            event_queue: Arc::new(SyncQueue::new()),
-            queue_capacity: None,
+            event_queue: Arc::new(EventContainer::Unbounded(SyncQueue::new())),
             overflow_count: Arc::new(AtomicUsize::new(0)),
         }
     }
 
-    /// Creates a new AsyncObserver with a bounded event queue. Once the queue
-    /// reaches `queue_capacity`, further events are dropped and counted as overflow.
+    /// Creates a new AsyncObserver backed by a bounded `SyncVector`. Once the
+    /// vector reaches `queue_capacity`, further events are dropped and counted
+    /// as overflow.
     pub fn with_capacity(queue_capacity: usize) -> Self {
         AsyncObserver {
             wakeable_sync_object: Arc::new(SyncObject::new()),
-            event_queue: Arc::new(SyncQueue::new()),
-            queue_capacity: Some(queue_capacity),
+            event_queue: Arc::new(EventContainer::Bounded(SyncVector::new(queue_capacity))),
             overflow_count: Arc::new(AtomicUsize::new(0)),
         }
     }
@@ -148,18 +188,10 @@ impl<Topic: Send + Sync + Clone + 'static, Evt: Send + Sync + Clone + 'static> O
     fn inform(&self, topic: &Topic, event: &Evt, origin: &str) {
         let record = ((*topic).clone(), (*event).clone(), origin.to_string());
 
-        match self.queue_capacity {
-            Some(capacity) => {
-                if self.event_queue.try_enqueue(record, capacity) {
-                    self.wakeable_sync_object.signal();
-                } else {
-                    self.overflow_count.fetch_add(1, Ordering::Relaxed);
-                }
-            }
-            None => {
-                self.event_queue.enqueue(record);
-                self.wakeable_sync_object.signal();
-            }
+        if self.event_queue.push(record) {
+            self.wakeable_sync_object.signal();
+        } else {
+            self.overflow_count.fetch_add(1, Ordering::Relaxed);
         }
     }
 }

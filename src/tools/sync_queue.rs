@@ -52,17 +52,6 @@ impl<T> SyncQueue<T> {
         queue_guard.pop_front()
     }
 
-    /// Adds an item to the back of the queue unless it is already at max_capacity.
-    /// Returns true if the item was enqueued, false if it was rejected due to overflow.
-    pub fn try_enqueue(&self, item: T, max_capacity: usize) -> bool {
-        let mut queue_guard = self.queue.write().unwrap();
-        if queue_guard.len() >= max_capacity {
-            return false;
-        }
-        queue_guard.push_back(item);
-        true
-    }
-
     /// Checks if the queue is empty.
     pub fn is_empty(&self) -> bool {
         let queue_guard = self.queue.read().unwrap();
