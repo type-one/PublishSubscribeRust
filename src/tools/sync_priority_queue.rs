@@ -50,6 +50,32 @@ impl<T: Ord> SyncPriorityQueue<T> {
         heap_guard.push(Reverse(item));
     }
 
+    /// Pushes items from an iterator into the priority queue under a single lock.
+    /// Returns the number of items inserted.
+    pub fn push_range<I: IntoIterator<Item = T>>(&self, items: I) -> usize {
+        let mut heap_guard = self.heap.write().unwrap();
+        let mut inserted = 0;
+        for item in items {
+            heap_guard.push(Reverse(item));
+            inserted += 1;
+        }
+        inserted
+    }
+
+    /// Removes and returns up to `max_count` items in priority order under a
+    /// single lock.
+    pub fn pop_range(&self, max_count: usize) -> Vec<T> {
+        let mut heap_guard = self.heap.write().unwrap();
+        let mut popped = Vec::with_capacity(max_count.min(heap_guard.len()));
+        while popped.len() < max_count {
+            match heap_guard.pop() {
+                Some(Reverse(item)) => popped.push(item),
+                None => break,
+            }
+        }
+        popped
+    }
+
     /// Removes and returns the highest-priority (lowest-valued) item.
     pub fn top_pop(&self) -> Option<T> {
         let mut heap_guard = self.heap.write().unwrap();
@@ -144,6 +170,16 @@ mod tests {
         assert_eq!(queue.front(), Some(4));
         assert_eq!(queue.front_pop(), Some(4));
         assert_eq!(queue.front_pop(), Some(9));
+    }
+
+    // test for push_range and pop_range batch operations
+    #[test]
+    fn test_push_range_and_pop_range() {
+        let queue = SyncPriorityQueue::new();
+        let inserted = queue.push_range(vec![5, 1, 3]);
+        assert_eq!(inserted, 3);
+        assert_eq!(queue.pop_range(2), vec![1, 3]);
+        assert_eq!(queue.pop_range(5), vec![5]);
     }
 
     // basic test for is_empty method

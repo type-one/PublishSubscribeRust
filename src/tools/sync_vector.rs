@@ -26,6 +26,8 @@
 use std::collections::VecDeque;
 use std::sync::RwLock;
 
+use crate::tools::ring_buffer::PushRangeOverwriteResult;
+
 /// Thread-safe, bounded ring vector on top of a preallocated `VecDeque`.
 /// Unlike `SyncQueue`, `push` fails once `capacity` items are stored instead
 /// of growing unbounded, so callers can detect and count dropped items.
@@ -60,6 +62,67 @@ impl<T> SyncVector<T> {
     pub fn pop_front(&self) -> Option<T> {
         let mut vector_guard = self.vector.write().unwrap();
         vector_guard.pop_front()
+    }
+
+    /// Alias for `pop_front`, provided for queue-compatible container usage.
+    pub fn front_pop(&self) -> Option<T> {
+        self.pop_front()
+    }
+
+    /// Adds an item to the back of the vector, evicting the oldest item once
+    /// full instead of rejecting the new one. Returns true if an existing
+    /// item was evicted to make room.
+    pub fn push_overwrite(&self, item: T) -> bool {
+        let mut vector_guard = self.vector.write().unwrap();
+        let evicted = if vector_guard.len() >= self.capacity {
+            vector_guard.pop_front();
+            true
+        } else {
+            false
+        };
+        vector_guard.push_back(item);
+        evicted
+    }
+
+    /// Pushes items from an iterator, stopping once the vector is full.
+    /// Returns the number of items actually inserted.
+    pub fn push_range<I: IntoIterator<Item = T>>(&self, items: I) -> usize {
+        let mut vector_guard = self.vector.write().unwrap();
+        let mut inserted = 0;
+        for item in items {
+            if vector_guard.len() >= self.capacity {
+                break;
+            }
+            vector_guard.push_back(item);
+            inserted += 1;
+        }
+        inserted
+    }
+
+    /// Pushes items from an iterator in overwrite mode: once full, each new
+    /// item evicts the oldest one instead of being rejected.
+    pub fn push_range_overwrite<I: IntoIterator<Item = T>>(
+        &self,
+        items: I,
+    ) -> PushRangeOverwriteResult {
+        let mut vector_guard = self.vector.write().unwrap();
+        let mut result = PushRangeOverwriteResult::default();
+        for item in items {
+            if vector_guard.len() >= self.capacity {
+                vector_guard.pop_front();
+                result.overwritten += 1;
+            }
+            vector_guard.push_back(item);
+            result.inserted += 1;
+        }
+        result
+    }
+
+    /// Removes and returns up to `max_count` items from the front of the vector.
+    pub fn pop_range(&self, max_count: usize) -> Vec<T> {
+        let mut vector_guard = self.vector.write().unwrap();
+        let count = max_count.min(vector_guard.len());
+        vector_guard.drain(..count).collect()
     }
 
     /// Checks if the vector is empty.
@@ -189,6 +252,47 @@ mod tests {
         vector.push(2);
         assert_eq!(vector.front(), Some(1));
         assert_eq!(vector.back(), Some(2));
+    }
+
+    // test for front_pop alias
+    #[test]
+    fn test_front_pop() {
+        let vector = SyncVector::new(2);
+        vector.push(1);
+        vector.push(2);
+        assert_eq!(vector.front_pop(), Some(1));
+        assert_eq!(vector.front_pop(), Some(2));
+        assert_eq!(vector.front_pop(), None);
+    }
+
+    // test push_overwrite evicts the oldest item once full
+    #[test]
+    fn test_push_overwrite_evicts_oldest() {
+        let vector = SyncVector::new(2);
+        vector.push(1);
+        vector.push(2);
+        assert!(vector.push_overwrite(3));
+        assert_eq!(vector.pop_front(), Some(2));
+        assert_eq!(vector.pop_front(), Some(3));
+    }
+
+    // test push_range stops at capacity
+    #[test]
+    fn test_push_range_stops_at_capacity() {
+        let vector = SyncVector::new(2);
+        let inserted = vector.push_range(vec![1, 2, 3]);
+        assert_eq!(inserted, 2);
+        assert!(vector.is_full());
+    }
+
+    // test push_range_overwrite reports eviction count
+    #[test]
+    fn test_push_range_overwrite_reports_counts() {
+        let vector = SyncVector::new(2);
+        let result = vector.push_range_overwrite(vec![1, 2, 3, 4]);
+        assert_eq!(result.inserted, 4);
+        assert_eq!(result.overwritten, 2);
+        assert_eq!(vector.pop_range(2), vec![3, 4]);
     }
 
     // Additional test with two threads

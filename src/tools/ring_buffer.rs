@@ -143,6 +143,11 @@ impl<T, const CAPACITY: usize> RingBuffer<T, CAPACITY> {
         item
     }
 
+    /// Alias for `pop`, provided for queue-compatible container usage.
+    pub fn front_pop(&mut self) -> Option<T> {
+        self.pop()
+    }
+
     /// Removes and returns up to `max_count` items from the front of the ring buffer.
     pub fn pop_range(&mut self, max_count: usize) -> Vec<T> {
         let mut popped = Vec::with_capacity(max_count.min(self.len));
@@ -204,6 +209,17 @@ mod tests {
         assert_eq!(buffer.pop(), Some(1));
         assert_eq!(buffer.pop(), Some(2));
         assert_eq!(buffer.pop(), None);
+    }
+
+    // test for front_pop alias
+    #[test]
+    fn test_front_pop() {
+        let mut buffer: RingBuffer<i32, 4> = RingBuffer::new();
+        buffer.push(1);
+        buffer.push(2);
+        assert_eq!(buffer.front_pop(), Some(1));
+        assert_eq!(buffer.front_pop(), Some(2));
+        assert_eq!(buffer.front_pop(), None);
     }
 
     // test reject-on-full mode

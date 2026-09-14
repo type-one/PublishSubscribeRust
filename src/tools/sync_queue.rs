@@ -52,6 +52,31 @@ impl<T> SyncQueue<T> {
         queue_guard.pop_front()
     }
 
+    /// Alias for `dequeue`, provided for queue-compatible container usage.
+    pub fn front_pop(&self) -> Option<T> {
+        self.dequeue()
+    }
+
+    /// Adds items from an iterator to the back of the queue under a single lock.
+    /// Returns the number of items inserted.
+    pub fn push_range<I: IntoIterator<Item = T>>(&self, items: I) -> usize {
+        let mut queue_guard = self.queue.write().unwrap();
+        let mut inserted = 0;
+        for item in items {
+            queue_guard.push_back(item);
+            inserted += 1;
+        }
+        inserted
+    }
+
+    /// Removes and returns up to `max_count` items from the front of the queue
+    /// under a single lock.
+    pub fn pop_range(&self, max_count: usize) -> Vec<T> {
+        let mut queue_guard = self.queue.write().unwrap();
+        let count = max_count.min(queue_guard.len());
+        queue_guard.drain(..count).collect()
+    }
+
     /// Checks if the queue is empty.
     pub fn is_empty(&self) -> bool {
         let queue_guard = self.queue.read().unwrap();
@@ -154,6 +179,27 @@ mod tests {
         queue.enqueue(2);
         assert_eq!(queue.front(), Some(1));
         assert_eq!(queue.back(), Some(2));
+    }
+
+    // test for front_pop alias
+    #[test]
+    fn test_front_pop() {
+        let queue = SyncQueue::new();
+        queue.enqueue(1);
+        queue.enqueue(2);
+        assert_eq!(queue.front_pop(), Some(1));
+        assert_eq!(queue.front_pop(), Some(2));
+        assert_eq!(queue.front_pop(), None);
+    }
+
+    // test for push_range and pop_range batch operations
+    #[test]
+    fn test_push_range_and_pop_range() {
+        let queue = SyncQueue::new();
+        let inserted = queue.push_range(vec![1, 2, 3]);
+        assert_eq!(inserted, 3);
+        assert_eq!(queue.pop_range(2), vec![1, 2]);
+        assert_eq!(queue.pop_range(5), vec![3]);
     }
 
     // Additional test with two threads
