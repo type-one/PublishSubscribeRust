@@ -55,7 +55,10 @@ fn test_sync_vector() {
     vector.push(3);
     println!("reject mode: push(4) accepted = {}", vector.push(4));
 
-    println!("overwrite mode: evicted oldest = {}", vector.push_overwrite(4));
+    println!(
+        "overwrite mode: evicted oldest = {}",
+        vector.push_overwrite(4)
+    );
     println!("contents after overwrite: {:?}", vector.pop_range(3));
     println!("-----------------------------------------------");
 }
@@ -102,7 +105,10 @@ fn test_ring_buffer_and_sync_ring_buffer() {
         "sync overwrite range inserted={} overwritten={}",
         overwrite_result.inserted, overwrite_result.overwritten
     );
-    println!("sync contents (recent history): {:?}", sync_buffer.pop_range(4));
+    println!(
+        "sync contents (recent history): {:?}",
+        sync_buffer.pop_range(4)
+    );
     println!("-----------------------------------------------");
 }
 
