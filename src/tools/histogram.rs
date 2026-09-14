@@ -68,6 +68,17 @@ where
         }
     }
 
+    /// Adds values from an iterator to the histogram. Returns the number of
+    /// values added.
+    pub fn add_range<I: IntoIterator<Item = T>>(&mut self, values: I) -> usize {
+        let mut count = 0;
+        for value in values {
+            self.add(value);
+            count += 1;
+        }
+        count
+    }
+
     /// Returns the total count of values in the histogram.
     pub fn total_count(&self) -> usize {
         self.total_count
@@ -247,6 +258,17 @@ mod tests {
         assert_eq!(hist.top_value(), Some(&1));
         assert_eq!(hist.top_count(), Some(2));
         assert_eq!(hist.top_value_with_count(), Some((&1, 2)));
+    }
+
+    // test add_range batch insertion
+    #[test]
+    fn test_histogram_add_range() {
+        let mut hist = Histogram::new();
+        let inserted = hist.add_range(vec![1, 2, 1, 3, 1]);
+        assert_eq!(inserted, 5);
+        assert_eq!(hist.total_count(), 5);
+        assert_eq!(hist.top_value(), Some(&1));
+        assert_eq!(hist.top_count(), Some(3));
     }
 
     // test average, variance, standard deviation, and median

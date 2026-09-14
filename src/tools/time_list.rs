@@ -219,7 +219,11 @@ mod tests {
         let snapshot = list.snapshot_sorted();
         assert_eq!(
             snapshot,
-            vec![(100, "one hundred"), (200, "two hundred"), (300, "three hundred")]
+            vec![
+                (100, "one hundred"),
+                (200, "two hundred"),
+                (300, "three hundred")
+            ]
         );
         assert_eq!(list.size(), 3);
     }
