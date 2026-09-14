@@ -31,14 +31,16 @@ Vendor code:
 - Keep `src/cJSON/` and `build.rs` untouched unless the task is explicitly
   about the C interop layer.
 - New features behind optional behavior should use Cargo features (see
-  `basic_tests`, `advanced_tests`, `fsm`, `all_tests` in `Cargo.toml`) rather
-  than ad-hoc `cfg` flags.
+  `basic_tests`, `advanced_tests`, `fsm`, `all_tests`, `pool_allocator` in
+  `Cargo.toml`) rather than ad-hoc `cfg` flags.
 
 ## Build/Run/Test Reference
 
 - Build: `cargo build`
 - Run: `cargo run`
 - Test: `cargo test`
+- Build/run with the custom pool allocator installed as the global allocator:
+  `cargo build --features pool_allocator` / `cargo run --features pool_allocator`
 - Lint: `cargo clippy --all-targets --all-features -- -D warnings`
 - Format: `cargo fmt`
 - Supply-chain/license checks: `cargo deny check` (see `deny.toml`)
@@ -250,5 +252,6 @@ Vendor code:
 - Use `String`/`&str` and `Vec<T>`/`&[T]` idiomatically; avoid needless
   `.to_string()`/`.clone()` calls.
 - Keep `unsafe` out of first-party code unless explicitly required and
-  documented; the `src/cJSON` FFI boundary in `build.rs`/`main.rs` is the
-  one place where `unsafe` is expected.
+  documented; the `src/cJSON` FFI boundary in `build.rs`/`main.rs`, and the
+  `GlobalAlloc` implementation in `src/tools/pool_allocator.rs` (feature
+  `pool_allocator`), are the places where `unsafe` is expected.

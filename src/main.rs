@@ -29,6 +29,13 @@ use pubsub_rs::examples::cjson_test;
 use pubsub_rs::examples::fsm_test;
 use pubsub_rs::examples::json_test;
 
+// Prevent heap fragmentation from frequent small event/message allocations by
+// caching and reusing small power-of-two blocks. Opt-in via `--features pool_allocator`.
+#[cfg(feature = "pool_allocator")]
+#[global_allocator]
+static GLOBAL_ALLOCATOR: pubsub_rs::tools::pool_allocator::PoolAllocator =
+    pubsub_rs::tools::pool_allocator::PoolAllocator::new();
+
 /// Main entry point for testing the synchronization tools.
 fn main() {
     // all-in-one basic tests of the different helper tools

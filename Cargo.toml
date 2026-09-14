@@ -39,6 +39,8 @@ publish_subscribe = []
 basic_tests = []
 advanced_tests = []
 all_tests = ["basic_tests", "advanced_tests", "fsm"]
+# custom pool allocator overriding the global allocator (opt-in, off by default)
+pool_allocator = []
 
 [lib]
 name = "pubsub_rs"

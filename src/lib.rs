@@ -29,6 +29,8 @@ pub mod tools {
     pub mod histogram;
     pub mod lock_free_ring_buffer;
     pub mod periodic_task;
+    #[cfg(feature = "pool_allocator")]
+    pub mod pool_allocator;
     pub mod ring_buffer;
     pub mod sync_dictionary;
     pub mod sync_object;

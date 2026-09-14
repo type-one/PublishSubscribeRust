@@ -36,6 +36,10 @@ Goodies:
   `SyncPriorityQueue`); bounded observers report dropped events through
   `has_queue_overflow()`, `queue_overflow_count()`, and
   `consume_queue_overflow_count()`
+- optional custom pool allocator (`PoolAllocator`) caching and reusing small
+  power-of-two blocks to reduce heap fragmentation from frequent
+  events/messages; opt-in via the `pool_allocator` Cargo feature, installed
+  as the process-wide `#[global_allocator]`
 
 [GitHub repository](https://github.com/type-one/PublishSubscribeRust)
 
@@ -57,6 +61,14 @@ adapted for other platforms (Mac, micro-computers, micro-controllers) as long as
 ```bash
 cargo build
 cargo run
+```
+
+To build and run with the custom pool allocator enabled instead of the
+default system allocator:
+
+```bash
+cargo build --features pool_allocator
+cargo run --features pool_allocator
 ```
 
 To run unit tests:
