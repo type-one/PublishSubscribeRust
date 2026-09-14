@@ -52,6 +52,7 @@ pub mod examples {
     pub mod advanced_test;
     pub mod basic_test;
     pub mod cjson_test;
+    pub mod containers_test;
     pub mod fsm_test;
     pub mod json_test;
 }

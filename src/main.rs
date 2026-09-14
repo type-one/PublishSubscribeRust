@@ -26,6 +26,7 @@
 use pubsub_rs::examples::advanced_test;
 use pubsub_rs::examples::basic_test;
 use pubsub_rs::examples::cjson_test;
+use pubsub_rs::examples::containers_test;
 use pubsub_rs::examples::fsm_test;
 use pubsub_rs::examples::json_test;
 
@@ -43,6 +44,11 @@ fn main() {
 
     // specific publish/subscribe advanced test with parsing
     advanced_test::advanced_test();
+
+    // containers/helpers added for C++ framework parity (SyncVector,
+    // SyncPriorityQueue, RingBuffer/SyncRingBuffer, TimeList/SyncTimeList,
+    // bounded/priority AsyncObserver, WorkerPool/WorkerTask delegate_async)
+    containers_test::containers_test();
 
     // finite state machine test
     fsm_test::fsm_test();

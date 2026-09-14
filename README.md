@@ -82,6 +82,12 @@ To run unit tests:
 cargo test
 ```
 
+To format the code:
+
+```bash
+cargo fmt
+```
+
 To check unit tests coverage of the helper tools:
 
 ```bash
