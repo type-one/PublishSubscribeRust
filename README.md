@@ -21,6 +21,10 @@ Goodies:
   share a queue-compatible API (`front_pop`, batch `push_range`/`pop_range`,
   and `push_overwrite`/`push_range_overwrite` where bounded) so they can be
   used interchangeably
+- chronological `TimeList`/`SyncTimeList` helpers: keyed by timestamp
+  (integral or `Instant`/`SystemTime`), always expose the earliest entry
+  first via `top()`/`top_pop()`, and `snapshot_sorted()` returns all entries
+  earliest-to-latest without draining
 - lock-free ring buffer on top of `Vec`
 - waitable object on top of `Mutex` and `Condvar`
 - periodic task helper

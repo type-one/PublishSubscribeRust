@@ -145,9 +145,9 @@ Vendor code:
 
 - Reuse the synchronization and task abstractions already present in
   `src/tools/` (`SyncObject`, `SyncQueue`, `SyncVector`, `SyncPriorityQueue`,
-  `RingBuffer`, `SyncRingBuffer`, `SyncDictionary`, `AsyncObserver`,
-  `WorkerTask`, `WorkerPool`, `PeriodicTask`) before introducing new
-  primitives.
+  `RingBuffer`, `SyncRingBuffer`, `SyncDictionary`, `TimeList`,
+  `SyncTimeList`, `AsyncObserver`, `WorkerTask`, `WorkerPool`,
+  `PeriodicTask`) before introducing new primitives.
 - `SyncDictionary<K, T, Container>` is generic over its backing associative
   container (`BTreeMap` by default, or `HashMap` via
   `DictionaryContainer<K, T>`); prefer adding new backing containers by
