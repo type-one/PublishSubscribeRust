@@ -8,7 +8,9 @@ Agnostic, Lightweight and Portable Publish-Subscribe Helper
 
 Goodies:
 
-- thread-safe dictionary helper on top of `BTreeMap`
+- thread-safe dictionary helper (`SyncDictionary`), generic over its backing
+  associative container (`BTreeMap` by default, or `HashMap`), with batch
+  insertion via `add_range()`
 - thread-safe contiguous queue on top of `VecDeque`
 - thread-safe bounded ring vector on top of a preallocated `VecDeque`
 - thread-safe priority queue on top of `BinaryHeap` (min-heap by default)

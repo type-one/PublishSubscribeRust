@@ -24,25 +24,116 @@
 //-----------------------------------------------------------------------------//
 
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::Debug;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::sync::RwLock;
-/// Thread-safe dictionary implementation using standard Rust constructs.
+
+/// Minimal associative-container abstraction so `SyncDictionary` can be
+/// backed by `BTreeMap`, `HashMap`, or any other compatible container,
+/// mirroring the C++ `sync_dictionary<K, T, TDictionary>` template parameter.
+pub trait DictionaryContainer<K, T>: Default {
+    fn insert(&mut self, key: K, value: T);
+    fn get(&self, key: &K) -> Option<&T>;
+    fn remove(&mut self, key: &K);
+    fn contains_key(&self, key: &K) -> bool;
+    fn len(&self) -> usize;
+    fn clear(&mut self);
+    fn to_vec(&self) -> Vec<(K, T)>
+    where
+        K: Clone,
+        T: Clone;
+}
+
+impl<K: Ord, T> DictionaryContainer<K, T> for BTreeMap<K, T> {
+    fn insert(&mut self, key: K, value: T) {
+        BTreeMap::insert(self, key, value);
+    }
+
+    fn get(&self, key: &K) -> Option<&T> {
+        BTreeMap::get(self, key)
+    }
+
+    fn remove(&mut self, key: &K) {
+        BTreeMap::remove(self, key);
+    }
+
+    fn contains_key(&self, key: &K) -> bool {
+        BTreeMap::contains_key(self, key)
+    }
+
+    fn len(&self) -> usize {
+        BTreeMap::len(self)
+    }
+
+    fn clear(&mut self) {
+        BTreeMap::clear(self);
+    }
+
+    fn to_vec(&self) -> Vec<(K, T)>
+    where
+        K: Clone,
+        T: Clone,
+    {
+        self.iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect()
+    }
+}
+
+impl<K: Eq + Hash, T> DictionaryContainer<K, T> for HashMap<K, T> {
+    fn insert(&mut self, key: K, value: T) {
+        HashMap::insert(self, key, value);
+    }
+
+    fn get(&self, key: &K) -> Option<&T> {
+        HashMap::get(self, key)
+    }
+
+    fn remove(&mut self, key: &K) {
+        HashMap::remove(self, key);
+    }
+
+    fn contains_key(&self, key: &K) -> bool {
+        HashMap::contains_key(self, key)
+    }
+
+    fn len(&self) -> usize {
+        HashMap::len(self)
+    }
+
+    fn clear(&mut self) {
+        HashMap::clear(self);
+    }
+
+    fn to_vec(&self) -> Vec<(K, T)>
+    where
+        K: Clone,
+        T: Clone,
+    {
+        self.iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect()
+    }
+}
+
+/// Thread-safe dictionary implementation, generic over its backing
+/// associative container (`BTreeMap` by default, or `HashMap`, ...).
 #[derive(Debug)]
-pub struct SyncDictionary<K, T> {
-    dictionary: RwLock<BTreeMap<K, T>>,
+pub struct SyncDictionary<K, T, Container = BTreeMap<K, T>> {
+    dictionary: RwLock<Container>,
+    _marker: PhantomData<(K, T)>,
 }
 
 /// Implementation of the SyncDictionary methods.
-impl<K, T> SyncDictionary<K, T>
+impl<K, T, Container> SyncDictionary<K, T, Container>
 where
-    K: Ord + Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
-    T: Clone + Debug,      // Ensure T can be cloned and printed
+    Container: DictionaryContainer<K, T>,
 {
-    /// Creates a new SyncDictionary.
+    /// Creates a new, empty SyncDictionary.
     pub fn new() -> Self {
         SyncDictionary {
-            dictionary: RwLock::new(BTreeMap::new()),
+            dictionary: RwLock::new(Container::default()),
+            _marker: PhantomData,
         }
     }
 
@@ -53,7 +144,10 @@ where
     }
 
     /// Retrieves a value associated with the given key.
-    pub fn get(&self, key: &K) -> Option<T> {
+    pub fn get(&self, key: &K) -> Option<T>
+    where
+        T: Clone,
+    {
         let dict_guard = self.dictionary.read().unwrap();
         dict_guard.get(key).cloned()
     }
@@ -70,6 +164,11 @@ where
         dict_guard.contains_key(key)
     }
 
+    /// Checks if the dictionary is empty.
+    pub fn is_empty(&self) -> bool {
+        self.size() == 0
+    }
+
     /// Returns the number of key-value pairs in the dictionary.
     pub fn size(&self) -> usize {
         let dict_guard = self.dictionary.read().unwrap();
@@ -82,43 +181,78 @@ where
         dict_guard.clear();
     }
 
-    /// Adds key-value pairs from a BTreeMap to the dictionary.
-    pub fn add_btree_collection(&self, other: &BTreeMap<K, T>) {
+    /// Inserts key-value pairs from an iterator under a single lock.
+    /// Returns the number of entries inserted.
+    pub fn add_range<I: IntoIterator<Item = (K, T)>>(&self, entries: I) -> usize {
         let mut dict_guard = self.dictionary.write().unwrap();
-        for (key, value) in other.iter() {
-            dict_guard.insert(key.clone(), value.clone());
+        let mut count = 0;
+        for (key, value) in entries {
+            dict_guard.insert(key, value);
+            count += 1;
         }
+        count
+    }
+
+    /// Adds key-value pairs from a BTreeMap to the dictionary.
+    pub fn add_btree_collection(&self, other: &BTreeMap<K, T>)
+    where
+        K: Clone,
+        T: Clone,
+    {
+        self.add_range(
+            other
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone())),
+        );
     }
 
     /// Adds key-value pairs from a HashMap to the dictionary.
-    pub fn add_hash_collection(&self, other: &HashMap<K, T>) {
-        let mut dict_guard = self.dictionary.write().unwrap();
-        for (key, value) in other.iter() {
-            dict_guard.insert(key.clone(), value.clone());
-        }
+    pub fn add_hash_collection(&self, other: &HashMap<K, T>)
+    where
+        K: Clone,
+        T: Clone,
+    {
+        self.add_range(
+            other
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone())),
+        );
     }
 
-    /// Converts the dictionary to a BTreeMap.
-    pub fn to_btree_collection(&self) -> BTreeMap<K, T> {
+    /// Returns a clone of the internal backing container.
+    pub fn snapshot(&self) -> Container
+    where
+        Container: Clone,
+    {
         let dict_guard = self.dictionary.read().unwrap();
         dict_guard.clone()
     }
 
-    /// Converts the dictionary to a HashMap.
-    pub fn to_hash_collection(&self) -> HashMap<K, T> {
+    /// Converts the dictionary to a BTreeMap.
+    pub fn to_btree_collection(&self) -> BTreeMap<K, T>
+    where
+        K: Ord + Clone,
+        T: Clone,
+    {
         let dict_guard = self.dictionary.read().unwrap();
-        dict_guard
-            .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect()
+        dict_guard.to_vec().into_iter().collect()
+    }
+
+    /// Converts the dictionary to a HashMap.
+    pub fn to_hash_collection(&self) -> HashMap<K, T>
+    where
+        K: Eq + Hash + Clone,
+        T: Clone,
+    {
+        let dict_guard = self.dictionary.read().unwrap();
+        dict_guard.to_vec().into_iter().collect()
     }
 }
 
 /// Implementation of the Default trait for SyncDictionary.
-impl<K, T> Default for SyncDictionary<K, T>
+impl<K, T, Container> Default for SyncDictionary<K, T, Container>
 where
-    K: Ord + Hash + Clone, // Ensure K can be used as a key in BTreeMap and cloned
-    T: Clone + Debug,      // Ensure T can be cloned and printed
+    Container: DictionaryContainer<K, T>,
 {
     fn default() -> Self {
         Self::new()
@@ -166,6 +300,34 @@ mod tests {
         assert_eq!(dict.size(), 2);
         dict.clear();
         assert_eq!(dict.size(), 0);
+    }
+
+    // basic test for is_empty
+    #[test]
+    fn test_is_empty() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        assert!(dict.is_empty());
+        dict.insert("key1".to_string(), 10);
+        assert!(!dict.is_empty());
+    }
+
+    // basic test for add_range batch insertion
+    #[test]
+    fn test_add_range() {
+        let dict: SyncDictionary<String, i32> = SyncDictionary::new();
+        let inserted = dict.add_range(vec![("key1".to_string(), 10), ("key2".to_string(), 20)]);
+        assert_eq!(inserted, 2);
+        assert_eq!(dict.get(&"key1".to_string()), Some(10));
+        assert_eq!(dict.get(&"key2".to_string()), Some(20));
+    }
+
+    // test that the backing container can be swapped for a HashMap
+    #[test]
+    fn test_hash_map_backed_dictionary() {
+        let dict: SyncDictionary<String, i32, HashMap<String, i32>> = SyncDictionary::new();
+        dict.insert("key1".to_string(), 10);
+        assert_eq!(dict.get(&"key1".to_string()), Some(10));
+        assert_eq!(dict.size(), 1);
     }
 
     // basic test for add_btree_collection
