@@ -155,7 +155,8 @@ Vendor code:
   latency-sensitive paths.
 - `AsyncObserver` stores events in a pluggable container: `new()` uses an
   unbounded `SyncQueue`, `with_capacity(n)` uses a bounded, preallocated
-  `SyncVector`, and `with_priority()` uses a `SyncPriorityQueue` (requires
+  `SyncVector`, `with_ring_buffer_capacity::<N>()` uses a fixed-capacity
+  `SyncRingBuffer`, and `with_priority()` uses a `SyncPriorityQueue` (requires
   `Topic`/`Evt` to be `Ord`) to deliver events in priority order instead of
   FIFO order. Bounded observers report entries dropped once full through
   `has_queue_overflow()`, `queue_overflow_count()`, and

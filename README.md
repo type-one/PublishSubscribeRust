@@ -22,8 +22,8 @@ Goodies:
 - queuable commands
 - a simple FSM example based on Enum state and methods
 - `AsyncObserver` supports pluggable event storage (unbounded `SyncQueue`,
-  bounded `SyncVector`, or priority-ordered `SyncPriorityQueue`); bounded
-  observers report dropped events through
+  bounded `SyncVector` or `SyncRingBuffer`, or priority-ordered
+  `SyncPriorityQueue`); bounded observers report dropped events through
   `has_queue_overflow()`, `queue_overflow_count()`, and
   `consume_queue_overflow_count()`
 

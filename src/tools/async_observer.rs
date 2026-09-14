@@ -30,15 +30,17 @@ use crate::tools::sync_object::SyncObject;
 use crate::tools::sync_observer::Observer;
 use crate::tools::sync_priority_queue::SyncPriorityQueue;
 use crate::tools::sync_queue::SyncQueue;
+use crate::tools::sync_ring_buffer::SyncRingBuffer;
 use crate::tools::sync_vector::SyncVector;
 
 /// Type alias for an event entry.
 pub type EventEntry<Topic, Evt> = (Topic, Evt, String);
 
 /// Pluggable event storage for AsyncObserver. Implemented by an unbounded
-/// `SyncQueue` (never rejects an entry), a bounded `SyncVector` (rejects
-/// entries once full so overflow can be observed), or a `SyncPriorityQueue`
-/// (delivers entries in priority order instead of FIFO order).
+/// `SyncQueue` (never rejects an entry), a bounded `SyncVector` or
+/// fixed-capacity `SyncRingBuffer` (both reject entries once full so
+/// overflow can be observed), or a `SyncPriorityQueue` (delivers entries in
+/// priority order instead of FIFO order).
 trait EventStore<T>: Send + Sync {
     /// Stores an entry. Returns false when the store rejected it (full).
     fn push(&self, entry: T) -> bool;
@@ -103,6 +105,24 @@ impl<T: Ord + Send + Sync> EventStore<T> for SyncPriorityQueue<T> {
     }
 }
 
+impl<T: Send + Sync, const CAPACITY: usize> EventStore<T> for SyncRingBuffer<T, CAPACITY> {
+    fn push(&self, entry: T) -> bool {
+        SyncRingBuffer::push(self, entry)
+    }
+
+    fn dequeue(&self) -> Option<T> {
+        self.pop()
+    }
+
+    fn is_empty(&self) -> bool {
+        SyncRingBuffer::is_empty(self)
+    }
+
+    fn size(&self) -> usize {
+        SyncRingBuffer::size(self)
+    }
+}
+
 /// Struct representing an asynchronous observer.
 pub struct AsyncObserver<Topic, Evt> {
     wakeable_sync_object: Arc<SyncObject>,
@@ -134,6 +154,17 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
         AsyncObserver {
             wakeable_sync_object: Arc::new(SyncObject::new()),
             event_queue: Arc::new(SyncVector::new(queue_capacity)),
+            overflow_count: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+
+    /// Creates a new AsyncObserver backed by a fixed-capacity `SyncRingBuffer`.
+    /// Once the ring buffer reaches its compile-time `CAPACITY`, further
+    /// events are dropped and counted as overflow.
+    pub fn with_ring_buffer_capacity<const CAPACITY: usize>() -> Self {
+        AsyncObserver {
+            wakeable_sync_object: Arc::new(SyncObject::new()),
+            event_queue: Arc::new(SyncRingBuffer::<EventEntry<Topic, Evt>, CAPACITY>::new()),
             overflow_count: Arc::new(AtomicUsize::new(0)),
         }
     }
@@ -353,6 +384,29 @@ mod tests {
     #[test]
     fn test_async_observer_queue_overflow() {
         let observer: AsyncObserver<String, String> = AsyncObserver::with_capacity(2);
+        observer.inform(&"topic".to_string(), &"event-1".to_string(), "producer");
+        observer.inform(&"topic".to_string(), &"event-2".to_string(), "producer");
+        observer.inform(
+            &"topic".to_string(),
+            &"event-3-dropped".to_string(),
+            "producer",
+        );
+
+        assert!(observer.has_queue_overflow());
+        assert_eq!(observer.queue_overflow_count(), 1);
+
+        assert_eq!(observer.consume_queue_overflow_count(), 1);
+        assert!(!observer.has_queue_overflow());
+
+        let events = observer.pop_all_events();
+        assert_eq!(events.len(), 2);
+    }
+
+    // test queue overflow detection with a fixed-capacity SyncRingBuffer-backed observer
+    #[test]
+    fn test_async_observer_ring_buffer_overflow() {
+        let observer: AsyncObserver<String, String> =
+            AsyncObserver::with_ring_buffer_capacity::<2>();
         observer.inform(&"topic".to_string(), &"event-1".to_string(), "producer");
         observer.inform(&"topic".to_string(), &"event-2".to_string(), "producer");
         observer.inform(
