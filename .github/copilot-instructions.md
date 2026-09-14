@@ -144,9 +144,9 @@ Vendor code:
 ## Concurrency and Platform Abstractions
 
 - Reuse the synchronization and task abstractions already present in
-  `src/tools/` (`SyncObject`, `SyncQueue`, `SyncVector`, `AsyncObserver`,
-  `WorkerTask`, `WorkerPool`, `PeriodicTask`) before introducing new
-  primitives.
+  `src/tools/` (`SyncObject`, `SyncQueue`, `SyncVector`, `SyncPriorityQueue`,
+  `AsyncObserver`, `WorkerTask`, `WorkerPool`, `PeriodicTask`) before
+  introducing new primitives.
 - Keep direct `std::thread`, `Mutex`, `RwLock`, and `Condvar` usage
   consistent with existing code and limited to cases where the local
   abstractions do not fit.
@@ -155,7 +155,9 @@ Vendor code:
   latency-sensitive paths.
 - `AsyncObserver` stores events in a pluggable container: `new()` uses an
   unbounded `SyncQueue`, `with_capacity(n)` uses a bounded, preallocated
-  `SyncVector`. Bounded observers report entries dropped once full through
+  `SyncVector`, and `with_priority()` uses a `SyncPriorityQueue` (requires
+  `Topic`/`Evt` to be `Ord`) to deliver events in priority order instead of
+  FIFO order. Bounded observers report entries dropped once full through
   `has_queue_overflow()`, `queue_overflow_count()`, and
   `consume_queue_overflow_count()`. Components using bounded observers should
   poll the consumed count and publish an explicit notification when dropped

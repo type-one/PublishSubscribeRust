@@ -28,58 +28,85 @@ use std::sync::Arc;
 
 use crate::tools::sync_object::SyncObject;
 use crate::tools::sync_observer::Observer;
+use crate::tools::sync_priority_queue::SyncPriorityQueue;
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::sync_vector::SyncVector;
 
 /// Type alias for an event entry.
 pub type EventEntry<Topic, Evt> = (Topic, Evt, String);
 
-/// Pluggable event storage for AsyncObserver: an unbounded `SyncQueue` that
-/// never rejects an entry, or a bounded `SyncVector` that rejects entries
-/// once full so overflow can be observed.
-enum EventContainer<T> {
-    Unbounded(SyncQueue<T>),
-    Bounded(SyncVector<T>),
+/// Pluggable event storage for AsyncObserver. Implemented by an unbounded
+/// `SyncQueue` (never rejects an entry), a bounded `SyncVector` (rejects
+/// entries once full so overflow can be observed), or a `SyncPriorityQueue`
+/// (delivers entries in priority order instead of FIFO order).
+trait EventStore<T>: Send + Sync {
+    /// Stores an entry. Returns false when the store rejected it (full).
+    fn push(&self, entry: T) -> bool;
+    fn dequeue(&self) -> Option<T>;
+    fn is_empty(&self) -> bool;
+    fn size(&self) -> usize;
 }
 
-impl<T> EventContainer<T> {
-    /// Stores an entry. Returns false when a bounded container is full.
+impl<T: Send + Sync> EventStore<T> for SyncQueue<T> {
     fn push(&self, entry: T) -> bool {
-        match self {
-            EventContainer::Unbounded(queue) => {
-                queue.enqueue(entry);
-                true
-            }
-            EventContainer::Bounded(vector) => vector.push(entry),
-        }
+        self.enqueue(entry);
+        true
     }
 
     fn dequeue(&self) -> Option<T> {
-        match self {
-            EventContainer::Unbounded(queue) => queue.dequeue(),
-            EventContainer::Bounded(vector) => vector.pop_front(),
-        }
+        SyncQueue::dequeue(self)
     }
 
     fn is_empty(&self) -> bool {
-        match self {
-            EventContainer::Unbounded(queue) => queue.is_empty(),
-            EventContainer::Bounded(vector) => vector.is_empty(),
-        }
+        SyncQueue::is_empty(self)
     }
 
     fn size(&self) -> usize {
-        match self {
-            EventContainer::Unbounded(queue) => queue.size(),
-            EventContainer::Bounded(vector) => vector.size(),
-        }
+        SyncQueue::size(self)
+    }
+}
+
+impl<T: Send + Sync> EventStore<T> for SyncVector<T> {
+    fn push(&self, entry: T) -> bool {
+        SyncVector::push(self, entry)
+    }
+
+    fn dequeue(&self) -> Option<T> {
+        self.pop_front()
+    }
+
+    fn is_empty(&self) -> bool {
+        SyncVector::is_empty(self)
+    }
+
+    fn size(&self) -> usize {
+        SyncVector::size(self)
+    }
+}
+
+impl<T: Ord + Send + Sync> EventStore<T> for SyncPriorityQueue<T> {
+    fn push(&self, entry: T) -> bool {
+        SyncPriorityQueue::push(self, entry);
+        true
+    }
+
+    fn dequeue(&self) -> Option<T> {
+        self.top_pop()
+    }
+
+    fn is_empty(&self) -> bool {
+        SyncPriorityQueue::is_empty(self)
+    }
+
+    fn size(&self) -> usize {
+        SyncPriorityQueue::size(self)
     }
 }
 
 /// Struct representing an asynchronous observer.
 pub struct AsyncObserver<Topic, Evt> {
     wakeable_sync_object: Arc<SyncObject>,
-    event_queue: Arc<EventContainer<EventEntry<Topic, Evt>>>,
+    event_queue: Arc<dyn EventStore<EventEntry<Topic, Evt>>>,
     overflow_count: Arc<AtomicUsize>,
 }
 
@@ -95,7 +122,7 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
     pub fn new() -> Self {
         AsyncObserver {
             wakeable_sync_object: Arc::new(SyncObject::new()),
-            event_queue: Arc::new(EventContainer::Unbounded(SyncQueue::new())),
+            event_queue: Arc::new(SyncQueue::new()),
             overflow_count: Arc::new(AtomicUsize::new(0)),
         }
     }
@@ -106,7 +133,7 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
     pub fn with_capacity(queue_capacity: usize) -> Self {
         AsyncObserver {
             wakeable_sync_object: Arc::new(SyncObject::new()),
-            event_queue: Arc::new(EventContainer::Bounded(SyncVector::new(queue_capacity))),
+            event_queue: Arc::new(SyncVector::new(queue_capacity)),
             overflow_count: Arc::new(AtomicUsize::new(0)),
         }
     }
@@ -163,6 +190,25 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
     /// Returns the number of dropped events and resets the overflow counter to zero.
     pub fn consume_queue_overflow_count(&self) -> usize {
         self.overflow_count.swap(0, Ordering::Relaxed)
+    }
+}
+
+/// Creates AsyncObserver backed by a `SyncPriorityQueue`, delivering events in
+/// priority order (lowest first) instead of FIFO order. Requires the event
+/// entry (topic, event, origin) to be `Ord`, which in turn requires `Topic`
+/// and `Evt` to be `Ord`.
+impl<Topic, Evt> AsyncObserver<Topic, Evt>
+where
+    Topic: Send + Sync + Ord + 'static,
+    Evt: Send + Sync + Ord + 'static,
+{
+    /// Creates a new AsyncObserver backed by a `SyncPriorityQueue`.
+    pub fn with_priority() -> Self {
+        AsyncObserver {
+            wakeable_sync_object: Arc::new(SyncObject::new()),
+            event_queue: Arc::new(SyncPriorityQueue::new()),
+            overflow_count: Arc::new(AtomicUsize::new(0)),
+        }
     }
 }
 
@@ -323,6 +369,19 @@ mod tests {
 
         let events = observer.pop_all_events();
         assert_eq!(events.len(), 2);
+    }
+
+    // test priority-ordered delivery with a SyncPriorityQueue-backed observer
+    #[test]
+    fn test_async_observer_priority_order() {
+        let observer: AsyncObserver<String, i32> = AsyncObserver::with_priority();
+        observer.inform(&"topic".to_string(), &5, "producer");
+        observer.inform(&"topic".to_string(), &1, "producer");
+        observer.inform(&"topic".to_string(), &3, "producer");
+
+        assert_eq!(observer.pop_first_event().unwrap().1, 1);
+        assert_eq!(observer.pop_first_event().unwrap().1, 3);
+        assert_eq!(observer.pop_first_event().unwrap().1, 5);
     }
 
     // test drop with other thread waiting

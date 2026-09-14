@@ -11,14 +11,16 @@ Goodies:
 - thread-safe dictionary helper on top of `BTreeMap`
 - thread-safe contiguous queue on top of `VecDeque`
 - thread-safe bounded ring vector on top of a preallocated `VecDeque`
+- thread-safe priority queue on top of `BinaryHeap` (min-heap by default)
 - lock-free ring buffer on top of `Vec`
 - waitable object on top of `Mutex` and `Condvar`
 - periodic task helper
 - worker task and worker pool helper
 - queuable commands
 - a simple FSM example based on Enum state and methods
-- `AsyncObserver` supports pluggable event storage (unbounded `SyncQueue` or
-  bounded `SyncVector`); bounded observers report dropped events through
+- `AsyncObserver` supports pluggable event storage (unbounded `SyncQueue`,
+  bounded `SyncVector`, or priority-ordered `SyncPriorityQueue`); bounded
+  observers report dropped events through
   `has_queue_overflow()`, `queue_overflow_count()`, and
   `consume_queue_overflow_count()`
 

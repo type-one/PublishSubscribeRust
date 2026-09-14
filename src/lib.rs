@@ -32,6 +32,7 @@ pub mod tools {
     pub mod sync_dictionary;
     pub mod sync_object;
     pub mod sync_observer;
+    pub mod sync_priority_queue;
     pub mod sync_queue;
     pub mod sync_vector;
     pub mod task_function;
