@@ -104,6 +104,33 @@ impl<ContextType: Send + Sync + 'static> WorkerPool<ContextType> {
 
         self.task_handles.lock().unwrap().push(handle);
     }
+
+    /// Delegates a closure to the worker pool and returns a `tokio::task::JoinHandle`
+    /// resolving to the closure's result (or `None` if the pool is not started).
+    ///
+    /// This is the async counterpart of `delegate`, comparable to the C++
+    /// framework's `worker_task::delegate_async`: chain continuations with
+    /// `.await` instead of `future<T>::then()`, and fan multiple handles in
+    /// with `tokio::join!`, a `tokio::task::JoinSet`, or by awaiting them in a
+    /// loop instead of `when_all`/`when_any`.
+    pub fn delegate_async<F, R>(&mut self, closure: F) -> Option<JoinHandle<R>>
+    where
+        F: FnOnce(Arc<ContextType>, String) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        if !self.is_started() {
+            return None;
+        }
+
+        let context = self.context.clone();
+        Some(self.runtime.spawn(async move {
+            let task_name = std::thread::current()
+                .name()
+                .unwrap_or("Worker")
+                .to_string();
+            closure(context, task_name)
+        }))
+    }
 }
 
 /// Implementation of the Drop trait for WorkerPool.
@@ -182,6 +209,41 @@ mod tests {
 
         worker_pool.stop();
         assert!(context.counter.load(Ordering::Acquire) > 0);
+    }
+
+    // Basic test for delegate_async: await the tokio JoinHandle for a result.
+    // Uses a throwaway runtime to drive the handle: WorkerPool owns its own
+    // internal runtime, and blocking on it while already inside another
+    // runtime (e.g. a #[tokio::test] body) would panic.
+    #[test]
+    fn test_worker_pool_delegate_async() {
+        struct TestContext {}
+        let context = Arc::new(TestContext {});
+        let mut worker_pool = WorkerPool::new(context.clone());
+        worker_pool.start();
+
+        let handle = worker_pool
+            .delegate_async(|_ctx, _task_name| 21 * 2)
+            .expect("pool should be started");
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(handle)
+            .expect("task should not panic");
+        assert_eq!(result, 42);
+
+        worker_pool.stop();
+    }
+
+    // delegate_async on a stopped pool returns None.
+    #[test]
+    fn test_worker_pool_delegate_async_after_stop() {
+        struct TestContext {}
+        let context = Arc::new(TestContext {});
+        let mut worker_pool = WorkerPool::new(context.clone());
+        worker_pool.start();
+        worker_pool.stop();
+
+        assert!(worker_pool.delegate_async(|_ctx, _task_name| 0).is_none());
     }
 
     // Basic test for start and stop methods.

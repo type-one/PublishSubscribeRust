@@ -28,7 +28,12 @@ Goodies:
 - lock-free ring buffer on top of `Vec`
 - waitable object on top of `Mutex` and `Condvar`
 - periodic task helper
-- worker task and worker pool helper
+- worker task and worker pool helper, both with an async `delegate_async()`
+  variant for request/response style jobs: `WorkerPool::delegate_async()`
+  returns a `tokio::task::JoinHandle<R>`, `WorkerTask::delegate_async()`
+  returns a `tokio::sync::oneshot::Receiver<R>`; chain continuations with
+  plain `.await` (instead of a `future<T>::then()`-style API) and fan
+  multiple handles in with `tokio::join!`/`tokio::task::JoinSet`
 - queuable commands
 - a simple FSM example based on Enum state and methods
 - `AsyncObserver` supports pluggable event storage (unbounded `SyncQueue`,

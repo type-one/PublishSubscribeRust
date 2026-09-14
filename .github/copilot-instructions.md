@@ -154,6 +154,18 @@ Vendor code:
   container (`BTreeMap` by default, or `HashMap` via
   `DictionaryContainer<K, T>`); prefer adding new backing containers by
   implementing that trait instead of special-casing `SyncDictionary` itself.
+- `WorkerPool::delegate_async()`/`WorkerTask::delegate_async()` are the async,
+  request/response counterparts of `delegate()`: they take an
+  `FnOnce(Arc<ContextType>, ...) -> R` and return a `tokio::task::JoinHandle<R>`
+  (pool) or `tokio::sync::oneshot::Receiver<R>` (task). Chain continuations
+  with plain `.await` rather than adding a bespoke `future<T>::then()`-style
+  combinator, and fan multiple handles in with `tokio::join!` or
+  `tokio::task::JoinSet` rather than a `when_all`/`when_any` helper. Never
+  call `.block_on(...)` (directly or via a type's `Drop`/`stop()`) from code
+  that is already executing inside a tokio runtime (e.g. a `#[tokio::test]`
+  body) — `WorkerPool` owns its own internal `Runtime` and blocks on it in
+  `stop()`/`Drop`, so tests exercising it synchronously must not run inside
+  another runtime.
 - Keep direct `std::thread`, `Mutex`, `RwLock`, and `Condvar` usage
   consistent with existing code and limited to cases where the local
   abstractions do not fit.

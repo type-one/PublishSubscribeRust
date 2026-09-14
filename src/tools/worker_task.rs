@@ -24,8 +24,10 @@
 //-----------------------------------------------------------------------------//
 
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, Sender};
+use tokio::sync::oneshot;
 
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::task_function::TaskFunction;
@@ -62,6 +64,37 @@ impl<ContextType: Send + Sync + 'static> WorkerTask<ContextType> {
             stop_signal: Arc::new(AtomicBool::new(false)),
             started: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// Delegates a closure to the worker task and returns a `tokio::sync::oneshot::Receiver`
+    /// that resolves with the closure's result once the worker thread processes it.
+    ///
+    /// This is the async counterpart of `delegate`, comparable to the C++
+    /// framework's `worker_task::delegate_async`: chain continuations with
+    /// `.await` instead of `future<T>::then()`. The worker task itself still
+    /// runs on its dedicated `std::thread`; only the result handoff uses tokio.
+    pub fn delegate_async<F, R>(&mut self, closure: F) -> oneshot::Receiver<R>
+    where
+        F: FnOnce(Arc<ContextType>, &String) -> R + Send + 'static,
+        R: Send + 'static,
+    {
+        let (sender, receiver) = oneshot::channel::<R>();
+        // Fn-compatible closures can't move out captured state directly, so the
+        // one-shot job and sender are kept behind a lock and taken on first call.
+        let closure_slot = Mutex::new(Some(closure));
+        let sender_slot = Mutex::new(Some(sender));
+
+        let task_function: Arc<TaskFunction<ContextType>> = Arc::new(move |context, task_name| {
+            if let Some(job) = closure_slot.lock().unwrap().take() {
+                let result = job(context, task_name);
+                if let Some(tx) = sender_slot.lock().unwrap().take() {
+                    let _ = tx.send(result);
+                }
+            }
+        });
+
+        self.delegate(task_function);
+        receiver
     }
 
     // The main loop of the worker task.
@@ -234,6 +267,21 @@ mod tests {
 
         thread::sleep(Duration::from_millis(100));
         assert_eq!(context.counter.load(Ordering::Acquire), 5);
+
+        worker_task.stop();
+    }
+
+    // Basic test for delegate_async: await the oneshot receiver for a result.
+    #[tokio::test]
+    async fn test_worker_task_delegate_async() {
+        struct TestContext {}
+        let context = Arc::new(TestContext {});
+        let mut worker_task = WorkerTask::new(context.clone(), "AsyncWorkerTask".to_string());
+        worker_task.start();
+
+        let receiver = worker_task.delegate_async(|_ctx, _task_name| 21 * 2);
+        let result = receiver.await.expect("worker task should send a result");
+        assert_eq!(result, 42);
 
         worker_task.stop();
     }
