@@ -27,8 +27,8 @@ use crate::tools::task_function::TaskFunction;
 use crate::tools::task_trait::TaskTrait;
 use crate::tools::worker_trait::WorkerTrait;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::runtime::{Builder, Runtime};
 use tokio::task::JoinHandle;
 

@@ -145,8 +145,8 @@ Vendor code:
 
 - Reuse the synchronization and task abstractions already present in
   `src/tools/` (`SyncObject`, `SyncQueue`, `SyncVector`, `SyncPriorityQueue`,
-  `AsyncObserver`, `WorkerTask`, `WorkerPool`, `PeriodicTask`) before
-  introducing new primitives.
+  `RingBuffer`, `SyncRingBuffer`, `AsyncObserver`, `WorkerTask`, `WorkerPool`,
+  `PeriodicTask`) before introducing new primitives.
 - Keep direct `std::thread`, `Mutex`, `RwLock`, and `Condvar` usage
   consistent with existing code and limited to cases where the local
   abstractions do not fit.

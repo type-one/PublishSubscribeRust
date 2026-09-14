@@ -12,6 +12,9 @@ Goodies:
 - thread-safe contiguous queue on top of `VecDeque`
 - thread-safe bounded ring vector on top of a preallocated `VecDeque`
 - thread-safe priority queue on top of `BinaryHeap` (min-heap by default)
+- fixed-capacity ring buffer (`RingBuffer`) with reject-on-full or
+  overwrite-on-full (evict oldest) push modes, and a thread-safe
+  `SyncRingBuffer` wrapper
 - lock-free ring buffer on top of `Vec`
 - waitable object on top of `Mutex` and `Condvar`
 - periodic task helper

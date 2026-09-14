@@ -222,11 +222,10 @@ mod tests {
             counter: AtomicUsize::new(0),
         });
 
-        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> = Arc::new(
-            |ctx: Arc<TestContext>, _task_name: &String, data: usize| {
-            ctx.counter.fetch_add(data, Ordering::AcqRel);
-            },
-        );
+        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> =
+            Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+                ctx.counter.fetch_add(data, Ordering::AcqRel);
+            });
 
         let mut data_task = DataTask::new(
             context.clone(),
@@ -290,11 +289,10 @@ mod tests {
             counter: AtomicUsize::new(0),
         });
 
-        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> = Arc::new(
-            |ctx: Arc<TestContext>, _task_name: &String, data: usize| {
-            ctx.counter.fetch_add(data, Ordering::AcqRel);
-            },
-        );
+        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> =
+            Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+                ctx.counter.fetch_add(data, Ordering::AcqRel);
+            });
 
         let mut data_task = DataTask::new(
             context.clone(),
@@ -324,11 +322,10 @@ mod tests {
             counter: AtomicUsize::new(0),
         });
 
-        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> = Arc::new(
-            |ctx: Arc<TestContext>, _task_name: &String, data: usize| {
-            ctx.counter.fetch_add(data, Ordering::AcqRel);
-            },
-        );
+        let data_processing_function: Arc<DataTaskFunction<TestContext, usize>> =
+            Arc::new(|ctx: Arc<TestContext>, _task_name: &String, data: usize| {
+                ctx.counter.fetch_add(data, Ordering::AcqRel);
+            });
 
         {
             let mut data_task = DataTask::new(
