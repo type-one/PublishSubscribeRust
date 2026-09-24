@@ -45,7 +45,7 @@ fn main() {
     // specific publish/subscribe advanced test with parsing
     advanced_test::advanced_test();
 
-    // containers/helpers added for C++ framework parity (SyncVector,
+    // containers/helpers added for C++ framework parity (SyncRingVector,
     // SyncPriorityQueue, RingBuffer/SyncRingBuffer, TimeList/SyncTimeList,
     // bounded/priority AsyncObserver, WorkerPool/WorkerTask delegate_async)
     containers_test::containers_test();

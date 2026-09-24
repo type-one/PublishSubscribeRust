@@ -32,16 +32,16 @@ use crate::tools::ring_buffer::PushRangeOverwriteResult;
 /// Unlike `SyncQueue`, `push` fails once `capacity` items are stored instead
 /// of growing unbounded, so callers can detect and count dropped items.
 #[derive(Debug)]
-pub struct SyncVector<T> {
+pub struct SyncRingVector<T> {
     vector: RwLock<VecDeque<T>>,
     capacity: usize,
 }
 
-/// Implementation of the SyncVector methods.
-impl<T> SyncVector<T> {
-    /// Creates a new SyncVector, preallocating storage for `capacity` items.
+/// Implementation of the SyncRingVector methods.
+impl<T> SyncRingVector<T> {
+    /// Creates a new SyncRingVector, preallocating storage for `capacity` items.
     pub fn new(capacity: usize) -> Self {
-        SyncVector {
+        SyncRingVector {
             vector: RwLock::new(VecDeque::with_capacity(capacity)),
             capacity,
         }
@@ -74,6 +74,9 @@ impl<T> SyncVector<T> {
     /// item was evicted to make room.
     pub fn push_overwrite(&self, item: T) -> bool {
         let mut vector_guard = self.vector.write().unwrap();
+        if self.capacity == 0 {
+            return false;
+        }
         let evicted = if vector_guard.len() >= self.capacity {
             vector_guard.pop_front();
             true
@@ -107,6 +110,9 @@ impl<T> SyncVector<T> {
     ) -> PushRangeOverwriteResult {
         let mut vector_guard = self.vector.write().unwrap();
         let mut result = PushRangeOverwriteResult::default();
+        if self.capacity == 0 {
+            return result;
+        }
         for item in items {
             if vector_guard.len() >= self.capacity {
                 vector_guard.pop_front();
@@ -173,15 +179,15 @@ impl<T> SyncVector<T> {
     }
 }
 
-// Unit tests for SyncVector.
+// Unit tests for SyncRingVector.
 #[cfg(test)]
 mod tests {
-    use super::SyncVector;
+    use super::SyncRingVector;
 
     // Basic test for push and pop_front operations.
     #[test]
     fn test_push_pop_front() {
-        let vector = SyncVector::new(4);
+        let vector = SyncRingVector::new(4);
         assert!(vector.push(1));
         assert!(vector.push(2));
         assert_eq!(vector.pop_front(), Some(1));
@@ -192,7 +198,7 @@ mod tests {
     // Test that push is rejected once capacity is reached.
     #[test]
     fn test_push_rejected_when_full() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         assert!(vector.push(1));
         assert!(vector.push(2));
         assert!(!vector.push(3));
@@ -203,7 +209,7 @@ mod tests {
     // Test push succeeds again after popping an item from a full vector.
     #[test]
     fn test_push_after_pop_frees_capacity() {
-        let vector = SyncVector::new(1);
+        let vector = SyncRingVector::new(1);
         assert!(vector.push(1));
         assert!(!vector.push(2));
         assert_eq!(vector.pop_front(), Some(1));
@@ -214,7 +220,7 @@ mod tests {
     // Basic test for is_empty method.
     #[test]
     fn test_is_empty() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         assert!(vector.is_empty());
         vector.push(1);
         assert!(!vector.is_empty());
@@ -225,7 +231,7 @@ mod tests {
     // Basic test for size and capacity methods.
     #[test]
     fn test_size_and_capacity() {
-        let vector = SyncVector::new(3);
+        let vector = SyncRingVector::new(3);
         assert_eq!(vector.capacity(), 3);
         assert_eq!(vector.size(), 0);
         vector.push(1);
@@ -236,7 +242,7 @@ mod tests {
     // Basic test for clear method.
     #[test]
     fn test_clear() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         vector.push(1);
         vector.push(2);
         vector.clear();
@@ -247,7 +253,7 @@ mod tests {
     // Basic test for front and back methods.
     #[test]
     fn test_front_back() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         vector.push(1);
         vector.push(2);
         assert_eq!(vector.front(), Some(1));
@@ -257,7 +263,7 @@ mod tests {
     // test for front_pop alias
     #[test]
     fn test_front_pop() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         vector.push(1);
         vector.push(2);
         assert_eq!(vector.front_pop(), Some(1));
@@ -268,7 +274,7 @@ mod tests {
     // test push_overwrite evicts the oldest item once full
     #[test]
     fn test_push_overwrite_evicts_oldest() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         vector.push(1);
         vector.push(2);
         assert!(vector.push_overwrite(3));
@@ -276,10 +282,22 @@ mod tests {
         assert_eq!(vector.pop_front(), Some(3));
     }
 
+    #[test]
+    fn test_zero_capacity_rejects_overwrite() {
+        let vector = SyncRingVector::new(0);
+        assert!(!vector.push_overwrite(1));
+        assert_eq!(vector.size(), 0);
+
+        let result = vector.push_range_overwrite(vec![2, 3]);
+        assert_eq!(result.inserted, 0);
+        assert_eq!(result.overwritten, 0);
+        assert!(vector.is_empty());
+    }
+
     // test push_range stops at capacity
     #[test]
     fn test_push_range_stops_at_capacity() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         let inserted = vector.push_range(vec![1, 2, 3]);
         assert_eq!(inserted, 2);
         assert!(vector.is_full());
@@ -288,7 +306,7 @@ mod tests {
     // test push_range_overwrite reports eviction count
     #[test]
     fn test_push_range_overwrite_reports_counts() {
-        let vector = SyncVector::new(2);
+        let vector = SyncRingVector::new(2);
         let result = vector.push_range_overwrite(vec![1, 2, 3, 4]);
         assert_eq!(result.inserted, 4);
         assert_eq!(result.overwritten, 2);
@@ -300,7 +318,7 @@ mod tests {
     use std::thread;
     #[test]
     fn test_concurrent_access() {
-        let vector = Arc::new(SyncVector::new(8));
+        let vector = Arc::new(SyncRingVector::new(8));
         let vector_for_producer = vector.clone();
         let vector_for_consumer = vector.clone();
 

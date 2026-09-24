@@ -17,7 +17,7 @@ Goodies:
 - fixed-capacity ring buffer (`RingBuffer`) with reject-on-full or
   overwrite-on-full (evict oldest) push modes, and a thread-safe
   `SyncRingBuffer` wrapper
-- `SyncQueue`, `SyncVector`, `SyncPriorityQueue`, and `SyncRingBuffer` all
+- `SyncQueue`, `SyncRingVector`, `SyncPriorityQueue`, and `SyncRingBuffer` all
   share a queue-compatible API (`front_pop`, batch `push_range`/`pop_range`,
   and `push_overwrite`/`push_range_overwrite` where bounded) so they can be
   used interchangeably
@@ -37,7 +37,7 @@ Goodies:
 - queuable commands
 - a simple FSM example based on Enum state and methods
 - `AsyncObserver` supports pluggable event storage (unbounded `SyncQueue`,
-  bounded `SyncVector` or `SyncRingBuffer`, or priority-ordered
+  bounded `SyncRingVector` or `SyncRingBuffer`, or priority-ordered
   `SyncPriorityQueue`); bounded observers report dropped events through
   `has_queue_overflow()`, `queue_overflow_count()`, and
   `consume_queue_overflow_count()`

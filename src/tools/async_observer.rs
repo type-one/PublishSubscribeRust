@@ -31,13 +31,13 @@ use crate::tools::sync_observer::Observer;
 use crate::tools::sync_priority_queue::SyncPriorityQueue;
 use crate::tools::sync_queue::SyncQueue;
 use crate::tools::sync_ring_buffer::SyncRingBuffer;
-use crate::tools::sync_vector::SyncVector;
+use crate::tools::sync_ring_vector::SyncRingVector;
 
 /// Type alias for an event entry.
 pub type EventEntry<Topic, Evt> = (Topic, Evt, String);
 
 /// Pluggable event storage for AsyncObserver. Implemented by an unbounded
-/// `SyncQueue` (never rejects an entry), a bounded `SyncVector` or
+/// `SyncQueue` (never rejects an entry), a bounded `SyncRingVector` or
 /// fixed-capacity `SyncRingBuffer` (both reject entries once full so
 /// overflow can be observed), or a `SyncPriorityQueue` (delivers entries in
 /// priority order instead of FIFO order).
@@ -68,9 +68,9 @@ impl<T: Send + Sync> EventStore<T> for SyncQueue<T> {
     }
 }
 
-impl<T: Send + Sync> EventStore<T> for SyncVector<T> {
+impl<T: Send + Sync> EventStore<T> for SyncRingVector<T> {
     fn push(&self, entry: T) -> bool {
-        SyncVector::push(self, entry)
+        SyncRingVector::push(self, entry)
     }
 
     fn dequeue(&self) -> Option<T> {
@@ -78,11 +78,11 @@ impl<T: Send + Sync> EventStore<T> for SyncVector<T> {
     }
 
     fn is_empty(&self) -> bool {
-        SyncVector::is_empty(self)
+        SyncRingVector::is_empty(self)
     }
 
     fn size(&self) -> usize {
-        SyncVector::size(self)
+        SyncRingVector::size(self)
     }
 }
 
@@ -147,13 +147,13 @@ impl<Topic: Send + Sync + 'static, Evt: Send + Sync + 'static> AsyncObserver<Top
         }
     }
 
-    /// Creates a new AsyncObserver backed by a bounded `SyncVector`. Once the
+    /// Creates a new AsyncObserver backed by a bounded `SyncRingVector`. Once the
     /// vector reaches `queue_capacity`, further events are dropped and counted
     /// as overflow.
     pub fn with_capacity(queue_capacity: usize) -> Self {
         AsyncObserver {
             wakeable_sync_object: Arc::new(SyncObject::new()),
-            event_queue: Arc::new(SyncVector::new(queue_capacity)),
+            event_queue: Arc::new(SyncRingVector::new(queue_capacity)),
             overflow_count: Arc::new(AtomicUsize::new(0)),
         }
     }

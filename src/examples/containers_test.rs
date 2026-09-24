@@ -24,7 +24,7 @@
 //-----------------------------------------------------------------------------//
 
 //! Demonstrates the containers and helpers added to reach feature parity with
-//! the C++ PublishSubscribe framework: `SyncVector`, `SyncPriorityQueue`,
+//! the C++ PublishSubscribe framework: `SyncRingVector`, `SyncPriorityQueue`,
 //! `RingBuffer`/`SyncRingBuffer`, `TimeList`/`SyncTimeList`, bounded
 //! `AsyncObserver` overflow detection, priority-ordered `AsyncObserver`, and
 //! `WorkerPool`/`WorkerTask` async delegation.
@@ -37,19 +37,19 @@ use crate::tools::ring_buffer::RingBuffer;
 use crate::tools::sync_observer::Observer;
 use crate::tools::sync_priority_queue::SyncPriorityQueue;
 use crate::tools::sync_ring_buffer::SyncRingBuffer;
+use crate::tools::sync_ring_vector::SyncRingVector;
 use crate::tools::sync_time_list::SyncTimeList;
-use crate::tools::sync_vector::SyncVector;
 use crate::tools::task_trait::TaskTrait;
 use crate::tools::time_list::TimeList;
 use crate::tools::worker_pool::WorkerPool;
 use crate::tools::worker_task::WorkerTask;
 
-/// Test function for SyncVector (bounded, reject-on-full and overwrite-on-full modes).
-fn test_sync_vector() {
-    println!("Testing SyncVector...");
+/// Test function for SyncRingVector (bounded, reject-on-full and overwrite-on-full modes).
+fn test_sync_ring_vector() {
+    println!("Testing SyncRingVector...");
     println!("-----------------------------------------------");
 
-    let vector = SyncVector::<i32>::new(3);
+    let vector = SyncRingVector::<i32>::new(3);
     vector.push(1);
     vector.push(2);
     vector.push(3);
@@ -203,7 +203,7 @@ pub fn containers_test() {
     println!("Starting containers/helpers parity test...");
     println!("-----------------------------------------------");
 
-    test_sync_vector();
+    test_sync_ring_vector();
     test_sync_priority_queue();
     test_ring_buffer_and_sync_ring_buffer();
     test_time_list_and_sync_time_list();
